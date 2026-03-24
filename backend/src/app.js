@@ -37,8 +37,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// ✅ Routes (we add these next)
-// app.use('/api/auth', authRoutes);
+// ✅ Routes
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
 
 // ✅ 404 Handler
 app.use( (req, res) => {
