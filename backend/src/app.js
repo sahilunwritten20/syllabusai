@@ -59,6 +59,9 @@ app.use('/api/coach', coachRoutes);
 const researchRoutes = require('./routes/researchRoutes');
 app.use('/api/research', researchRoutes);
 
+const chatRoutes = require('./routes/chatRoutes');
+app.use('/api/chat', chatRoutes);
+
 
 // ✅ 404 Handler
 app.use( (req, res) => {
