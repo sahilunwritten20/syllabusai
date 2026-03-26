@@ -41,6 +41,8 @@ app.get('/', (req, res) => {
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
+const syllabusRoutes = require('./routes/syllabusRoutes');
+app.use('/api/syllabus', syllabusRoutes);
 // ✅ 404 Handler
 app.use( (req, res) => {
   res.status(404).json({
