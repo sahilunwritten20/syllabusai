@@ -43,6 +43,11 @@ app.use('/api/auth', authRoutes);
 
 const syllabusRoutes = require('./routes/syllabusRoutes');
 app.use('/api/syllabus', syllabusRoutes);
+
+const teacherRoutes = require('./routes/teacherRoutes');
+app.use('/api/teacher', teacherRoutes);
+
+
 // ✅ 404 Handler
 app.use( (req, res) => {
   res.status(404).json({
@@ -50,6 +55,8 @@ app.use( (req, res) => {
     message: 'Route not found'
   });
 });
+
+
 
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
