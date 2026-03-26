@@ -47,6 +47,18 @@ app.use('/api/syllabus', syllabusRoutes);
 const teacherRoutes = require('./routes/teacherRoutes');
 app.use('/api/teacher', teacherRoutes);
 
+const examinerRoutes = require('./routes/examinerRoutes');
+app.use('/api/examiner', examinerRoutes);
+
+const debuggerRoutes = require('./routes/debuggerRoutes');
+app.use('/api/debugger', debuggerRoutes);
+
+const coachRoutes = require('./routes/coachRoutes');
+app.use('/api/coach', coachRoutes);
+
+const researchRoutes = require('./routes/researchRoutes');
+app.use('/api/research', researchRoutes);
+
 
 // ✅ 404 Handler
 app.use( (req, res) => {
