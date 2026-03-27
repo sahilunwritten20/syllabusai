@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
+const passport = require('./config/passport');
+app.use(passport.initialize());
 
 // ✅ Security Middleware
 app.use(helmet());

@@ -22,6 +22,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-black text-white">
@@ -34,7 +35,9 @@ export default function Login() {
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
           <h2 className="text-2xl font-bold text-white mb-6">Welcome back 👋</h2>
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            
             <div>
               <label className="text-sm text-gray-400 mb-1 block">Email</label>
               <input
@@ -68,9 +71,36 @@ export default function Login() {
             </button>
           </form>
 
+          {/* OR Divider */}
+          <div className="mt-4">
+            <div className="relative flex items-center justify-center my-4">
+              <div className="border-t border-gray-700 w-full"></div>
+              <span className="bg-gray-900 px-3 text-gray-500 text-sm absolute">
+                or
+              </span>
+            </div>
+
+            {/* Google Button */}
+            <a
+              href="https://syllabusai-backend.onrender.com/api/auth/google"
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-800 font-bold py-3 rounded-xl transition"
+            >
+              <img
+                src="https://www.google.com/favicon.ico"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              Continue with Google
+            </a>
+          </div>
+
+          {/* Signup Link */}
           <p className="text-center text-gray-400 mt-6 text-sm">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-blue-400 hover:underline font-medium">
+            <Link
+              to="/signup"
+              className="text-blue-400 hover:underline font-medium"
+            >
               Sign up free
             </Link>
           </p>

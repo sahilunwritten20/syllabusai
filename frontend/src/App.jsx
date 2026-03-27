@@ -11,6 +11,10 @@ import Learn from './pages/learn/Learn';
 import Exam from './pages/exam/Exam';
 import Career from './pages/career/Career';
 
+import AuthCallback from './pages/auth/AuthCallback';
+// Add this route:
+<Route path="/auth/callback" element={<AuthCallback />} />  
+
 // Protected Route
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuthStore();
