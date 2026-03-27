@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { syllabusAPI, teacherAPI, chatAPI } from '../../services/api';
+import { syllabusAPI, teacherAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 export default function Learn() {
@@ -10,14 +10,18 @@ export default function Learn() {
   const [lesson, setLesson] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { fetchSyllabus(); }, []);
+  useEffect(() => {
+    fetchSyllabus();
+  }, []);
 
   const fetchSyllabus = async () => {
     try {
       const res = await syllabusAPI.getMy();
       setSyllabus(res.data.syllabus);
       setSelectedSubject(res.data.syllabus.subjects[0]);
-    } catch {}
+    } catch {
+      toast.error('Failed to load syllabus');
+    }
   };
 
   const learnTopic = async (topic, subject) => {
@@ -35,8 +39,11 @@ export default function Learn() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      {/* Navbar */}
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between bg-gray-900">
-        <Link to="/dashboard" className="text-2xl font-black">Syllabus<span className="text-blue-500">AI</span></Link>
+        <Link to="/dashboard" className="text-2xl font-black">
+          Syllabus<span className="text-blue-500">AI</span>
+        </Link>
         <div className="flex gap-4 text-sm">
           <Link to="/dashboard" className="text-gray-400 hover:text-white">📊 Dashboard</Link>
           <Link to="/chat" className="text-gray-400 hover:text-white">🤖 AI Chat</Link>
@@ -44,70 +51,111 @@ export default function Learn() {
         </div>
       </nav>
 
-      <div className="flex" style={{height:'calc(100vh - 65px)'}}>
-        {/* Topics Sidebar */}
+      <div className="flex" style={{ height: 'calc(100vh - 65px)' }}>
+        
+        {/* Sidebar */}
         <div className="w-72 bg-gray-900 border-r border-gray-800 overflow-y-auto">
           <div className="p-4">
-            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Your Syllabus</div>
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Your Syllabus
+            </div>
+
             {syllabus?.subjects?.map((subject, i) => (
               <div key={i} className="mb-4">
+                
+                {/* Subject */}
                 <button
                   onClick={() => setSelectedSubject(subject)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition ${
-                    selectedSubject?.name === subject.name ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'
+                    selectedSubject?.name === subject.name
+                      ? 'text-blue-400'
+                      : 'text-gray-500 hover:text-gray-300'
                   }`}
                 >
                   {subject.name}
                 </button>
-                {selectedSubject?.name === subject.name && subject.units?.map((unit, j) => (
-                  <div key={j} className="ml-2 mt-1">
-                    <div className="text-xs text-gray-600 px-2 py-1">Unit {unit.unitNumber}: {unit.title}</div>
-                    {unit.topics?.map((topic, k) => (
-                      <button
-                        key={k}
-                        onClick={() => learnTopic(topic.name || topic, subject.name)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2 ${
-                          selectedTopic === (topic.name || topic)
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                        }`}
-                      >
-                        <span>{topic.isCompleted ? '✅' : '○'}</span>
-                        {topic.name || topic}
-                      </button>
-                    ))}
-                  </div>
-                ))}
+
+                {/* Units */}
+                {selectedSubject?.name === subject.name &&
+                  subject.units?.map((unit, j) => (
+                    <div key={j} className="ml-2 mt-1">
+                      
+                      <div className="text-xs text-gray-600 px-2 py-1">
+                        Unit {unit.unitNumber}: {unit.title}
+                      </div>
+
+                      {/* Topics (FIXED) */}
+                      {unit.topics?.map((topic, k) => {
+                        const topicName =
+                          typeof topic === 'string' ? topic : topic.name;
+
+                        return (
+                          <button
+                            key={k}
+                            onClick={() =>
+                              learnTopic(topicName, subject.name)
+                            }
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2 ${
+                              selectedTopic === topicName
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                            }`}
+                          >
+                            <span>
+                              {typeof topic === 'object' && topic.isCompleted
+                                ? '✅'
+                                : '○'}
+                            </span>
+                            {topicName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Lesson Area */}
+        {/* Main Content */}
         <div className="flex-1 overflow-y-auto p-8">
+          
           {!selectedTopic && (
             <div className="text-center py-20">
               <div className="text-5xl mb-4">📚</div>
               <h2 className="text-2xl font-bold mb-2">Select a Topic</h2>
-              <p className="text-gray-400">Choose any topic from your syllabus to start learning</p>
+              <p className="text-gray-400">
+                Choose any topic from your syllabus to start learning
+              </p>
             </div>
           )}
 
           {loading && (
             <div className="text-center py-20">
               <div className="text-5xl mb-4 animate-spin">🤖</div>
-              <p className="text-gray-400">Teacher Agent is preparing your lesson...</p>
+              <p className="text-gray-400">
+                Teacher Agent is preparing your lesson...
+              </p>
             </div>
           )}
 
           {lesson && !loading && (
             <div>
               <div className="mb-6">
-                <div className="text-xs text-gray-500 mb-1">{selectedSubject?.name}</div>
-                <h1 className="text-3xl font-black mb-2">{selectedTopic}</h1>
+                <div className="text-xs text-gray-500 mb-1">
+                  {selectedSubject?.name}
+                </div>
+                <h1 className="text-3xl font-black mb-2">
+                  {selectedTopic}
+                </h1>
+
                 <div className="flex gap-3">
-                  <span className="text-xs bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full">📚 In your syllabus</span>
-                  <span className="text-xs bg-green-900/50 text-green-300 px-3 py-1 rounded-full">🤖 AI Generated</span>
+                  <span className="text-xs bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full">
+                    📚 In your syllabus
+                  </span>
+                  <span className="text-xs bg-green-900/50 text-green-300 px-3 py-1 rounded-full">
+                    🤖 AI Generated
+                  </span>
                 </div>
               </div>
 
@@ -124,6 +172,7 @@ export default function Learn() {
                 >
                   Take Quiz on This →
                 </Link>
+
                 <Link
                   to="/chat"
                   className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-bold transition text-sm"

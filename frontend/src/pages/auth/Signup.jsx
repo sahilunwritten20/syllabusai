@@ -39,7 +39,7 @@ export default function Signup() {
               <label className="text-sm text-gray-400 mb-1 block">Full Name</label>
               <input
                 type="text"
-                placeholder="Rahul Sharma"
+                placeholder="Sahil Gupta"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition"
