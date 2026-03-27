@@ -15,6 +15,10 @@ import AuthCallback from './pages/auth/AuthCallback';
 // Add this route:
 <Route path="/auth/callback" element={<AuthCallback />} />  
 
+import Admin from './pages/admin/Admin';
+// Add:
+<Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+
 // Protected Route
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuthStore();

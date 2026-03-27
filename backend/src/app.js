@@ -6,8 +6,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
-const passport = require('./config/passport');
-app.use(passport.initialize());
+
 
 // ✅ Security Middleware
 app.use(helmet());
@@ -64,6 +63,14 @@ app.use('/api/research', researchRoutes);
 const chatRoutes = require('./routes/chatRoutes');
 app.use('/api/chat', chatRoutes);
 
+const passport = require('./config/passport');
+app.use(passport.initialize());
+
+const voiceRoutes = require('./routes/voiceRoutes');
+app.use('/api/voice', voiceRoutes);
+
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
 
 // ✅ 404 Handler
 app.use( (req, res) => {
