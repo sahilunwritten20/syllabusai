@@ -10,12 +10,7 @@ const app = express();
 // ✅ Security Middleware
 app.use(helmet());
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://syllabusai-omzeo3zkn-sahilteams.vercel.app',
-    process.env.FRONTEND_URL
-  ],
+  origin: true,
   credentials: true
 }));
 
