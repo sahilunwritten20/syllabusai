@@ -12,10 +12,20 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
 
+
+   useEffect(() => {
+  if (user?.role === 'admin') {
+    navigate('/admin');
+  }
+}, [user]);
+
   useEffect(() => {
     fetchSyllabus();
     fetchMotivation();
   }, []);
+
+ 
+
 
   const fetchSyllabus = async () => {
     try {
