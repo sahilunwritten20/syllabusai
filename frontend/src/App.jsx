@@ -10,14 +10,8 @@ import Chat from './pages/chat/Chat';
 import Learn from './pages/learn/Learn';
 import Exam from './pages/exam/Exam';
 import Career from './pages/career/Career';
-
 import AuthCallback from './pages/auth/AuthCallback';
-// Add this route:
-<Route path="/auth/callback" element={<AuthCallback />} />  
-
 import Admin from './pages/admin/Admin';
-// Add:
-<Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
 
 // Protected Route
 const ProtectedRoute = ({ children }) => {
@@ -25,7 +19,7 @@ const ProtectedRoute = ({ children }) => {
   return token ? children : <Navigate to="/login" />;
 };
 
-// Public Route (redirect if logged in)
+// Public Route
 const PublicRoute = ({ children }) => {
   const { token } = useAuthStore();
   return !token ? children : <Navigate to="/dashboard" />;
@@ -43,6 +37,8 @@ function App() {
         <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
         <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
         <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
