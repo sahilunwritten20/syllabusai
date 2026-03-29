@@ -12,20 +12,14 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-
-   useEffect(() => {
-  if (user?.role === 'admin') {
-    navigate('/admin');
-  }
-}, [user]);
-
   useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/admin');
+      return;
+    }
     fetchSyllabus();
     fetchMotivation();
-  }, []);
-
- 
-
+  }, [user]);
 
   const fetchSyllabus = async () => {
     try {
@@ -65,7 +59,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      {/* Navbar */}
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between bg-gray-900">
         <h1 className="text-2xl font-black">Syllabus<span className="text-blue-500">AI</span></h1>
         <div className="flex items-center gap-4">
@@ -78,13 +71,11 @@ export default function Dashboard() {
       </nav>
 
       <div className="p-6 max-w-7xl mx-auto">
-        {/* Welcome */}
         <div className="mb-6">
           <h2 className="text-3xl font-black">Good day, {user?.name?.split(' ')[0]}! 👋</h2>
           <p className="text-gray-400 mt-1">Here's your learning overview</p>
         </div>
 
-        {/* Motivation Banner */}
         {motivation && (
           <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-800/50 rounded-2xl p-4 mb-6 flex gap-3">
             <span className="text-2xl">🔥</span>
@@ -92,7 +83,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* No Syllabus */}
         {!loading && !syllabus && (
           <div className="bg-gray-900 border-2 border-dashed border-gray-700 rounded-2xl p-12 text-center mb-6">
             <div className="text-5xl mb-4">📄</div>
@@ -105,7 +95,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats */}
         {syllabus && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -131,7 +120,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Subjects */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
               <h3 className="font-bold text-lg mb-4">📋 Syllabus Coverage — {syllabus.branch} Sem {syllabus.semester}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -139,10 +127,7 @@ export default function Dashboard() {
                   <div key={i} className="bg-gray-800 rounded-xl p-4">
                     <div className="font-medium text-sm mb-2">{subject.name}</div>
                     <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full transition-all"
-                        style={{ width: `${subject.progress || 0}%` }}
-                      />
+                      <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${subject.progress || 0}%` }}/>
                     </div>
                     <div className="text-xs text-gray-400 mt-1">{subject.progress || 0}% complete</div>
                   </div>
@@ -150,9 +135,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link to="/chat" className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-center transition group">
+              <Link to="/chat" className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-center transition">
                 <div className="text-3xl mb-2">🤖</div>
                 <div className="font-bold">AI Agents</div>
                 <div className="text-blue-200 text-xs mt-1">Chat with AI</div>
