@@ -12,26 +12,14 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  if (!user) return;
-
-  // ✅ Redirect admin
-  if (user.role === 'admin') {
-    navigate('/admin');
-    return;
-  }
-
-  // ✅ Load dashboard data for normal users
-  fetchSyllabus();
-  fetchMotivation();
-
-}, [user]);
-
+  // ✅ Define functions FIRST before useEffect
   const fetchSyllabus = async () => {
     try {
       const res = await syllabusAPI.getMy();
       setSyllabus(res.data.syllabus);
-    } catch {}
+    } catch (err) {
+      console.log('Syllabus fetch error:', err);
+    }
     setLoading(false);
   };
 
@@ -39,8 +27,21 @@ useEffect(() => {
     try {
       const res = await coachAPI.getMotivation();
       setMotivation(res.data.message);
-    } catch {}
+    } catch (err) {
+      console.log('Motivation fetch error:', err);
+    }
   };
+
+  // ✅ useEffect AFTER functions
+  useEffect(() => {
+    if (!user) return;
+    if (user.role === 'admin') {
+      navigate('/admin');
+      return;
+    }
+    fetchSyllabus();
+    fetchMotivation();
+  }, [user, navigate]);
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -62,7 +63,7 @@ useEffect(() => {
     await logout();
     navigate('/login');
   };
-console.log("USER DATA:", user);
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between bg-gray-900">
