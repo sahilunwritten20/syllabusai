@@ -12,14 +12,8 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    if (user.role !== 'admin') {
-      navigate('/dashboard');
-      return;
-    }
+    if (!user) { navigate('/login'); return; }
+    if (user.role !== 'admin') { navigate('/dashboard'); return; }
     fetchData();
   }, [user]);
 
@@ -94,3 +88,56 @@ export default function Admin() {
             ))}
           </div>
         )}
+
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+          <div className="p-4 border-b border-gray-800">
+            <h3 className="font-bold">👥 All Users ({users.length})</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-800">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs text-gray-400">Name</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-400">Email</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-400">Role</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-400">Branch</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-400">Joined</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-400">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u, i) => (
+                  <tr key={i} className="border-t border-gray-800 hover:bg-gray-800/50">
+                    <td className="px-4 py-3 text-sm font-medium">{u.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400">{u.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        u.role === 'admin' ? 'bg-red-900/50 text-red-400' :
+                        u.role === 'teacher' ? 'bg-purple-900/50 text-purple-400' :
+                        'bg-blue-900/50 text-blue-400'
+                      }`}>{u.role}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-400">{u.branch || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400">
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.role !== 'admin' && (
+                        <button
+                          onClick={() => deleteUser(u._id)}
+                          className="text-red-400 hover:text-red-300 text-xs"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
