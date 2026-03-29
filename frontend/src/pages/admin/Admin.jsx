@@ -11,12 +11,7 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) { navigate('/login'); return; }
-    if (user.role !== 'admin') { navigate('/dashboard'); return; }
-    fetchData();
-  }, [user]);
-
+  // ✅ Define BEFORE useEffect
   const fetchData = async () => {
     try {
       const [statsRes, usersRes] = await Promise.all([
@@ -31,13 +26,20 @@ export default function Admin() {
     setLoading(false);
   };
 
+  // ✅ useEffect AFTER functions
+  useEffect(() => {
+    if (!user) { navigate('/login'); return; }
+    if (user.role !== 'admin') { navigate('/dashboard'); return; }
+    fetchData();
+  }, [user, navigate]);
+
   const deleteUser = async (id) => {
     if (!window.confirm('Delete this user?')) return;
     try {
       await API.delete(`/admin/users/${id}`);
       toast.success('User deleted!');
       fetchData();
-    } catch {
+    } catch (err) {
       toast.error('Failed to delete');
     }
   };
