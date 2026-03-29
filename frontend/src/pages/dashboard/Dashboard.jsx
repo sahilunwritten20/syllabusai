@@ -62,7 +62,7 @@ useEffect(() => {
     await logout();
     navigate('/login');
   };
-
+console.log("USER DATA:", user);
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between bg-gray-900">
