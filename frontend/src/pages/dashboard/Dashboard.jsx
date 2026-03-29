@@ -12,14 +12,20 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      navigate('/admin');
-      return;
-    }
-    fetchSyllabus();
-    fetchMotivation();
-  }, [user]);
+useEffect(() => {
+  if (!user) return;
+
+  // ✅ Redirect admin
+  if (user.role === 'admin') {
+    navigate('/admin');
+    return;
+  }
+
+  // ✅ Load dashboard data for normal users
+  fetchSyllabus();
+  fetchMotivation();
+
+}, [user]);
 
   const fetchSyllabus = async () => {
     try {
