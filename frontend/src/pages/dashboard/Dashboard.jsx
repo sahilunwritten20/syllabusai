@@ -19,10 +19,10 @@ export default function Dashboard() {
     setSyllabus(res.data.syllabus);
   } catch (err) {
     if (err.response?.status === 404) {
-      setSyllabus(null);
+      setSyllabus(null); // ✅ important
     }
   } finally {
-    setLoading(false); // ✅ move here
+    setLoading(false); // ✅ important
   }
 };
 
@@ -36,16 +36,16 @@ export default function Dashboard() {
   };
 
   // ✅ useEffect AFTER functions
- useEffect(() => {
+useEffect(() => {
   if (!user) return;
 
-  // ✅ BLOCK everything for admin
+  // ✅ Admin redirect (STOP everything)
   if (user.role === 'admin') {
     navigate('/admin');
     return;
   }
 
-  // ✅ ONLY normal users reach here
+  // ✅ Only for students
   fetchSyllabus();
   fetchMotivation();
 
