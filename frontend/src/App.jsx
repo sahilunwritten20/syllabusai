@@ -38,8 +38,27 @@ function App() {
 
         <Route path="/" element={<Landing />} />
 
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
-        <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/dashboard" />} />
+        <Route 
+  path="/login" 
+  element={
+    !user 
+      ? <Login /> 
+      : user.role === 'admin' 
+        ? <Navigate to="/admin" /> 
+        : <Navigate to="/dashboard" />
+  } 
+/>
+
+<Route 
+  path="/signup" 
+  element={
+    !user 
+      ? <Signup /> 
+      : user.role === 'admin' 
+        ? <Navigate to="/admin" /> 
+        : <Navigate to="/dashboard" />
+  } 
+/>
 
         {/* ✅ Dashboard Route FIXED */}
         <Route
