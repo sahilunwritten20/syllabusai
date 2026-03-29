@@ -13,33 +13,65 @@ import Career from './pages/career/Career';
 import AuthCallback from './pages/auth/AuthCallback';
 import Admin from './pages/admin/Admin';
 
-// Protected Route
+// ✅ Protected Route
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuthStore();
   return token ? children : <Navigate to="/login" />;
 };
 
-// Public Route
-const PublicRoute = ({ children }) => {
-  const { token } = useAuthStore();
-  return !token ? children : <Navigate to="/dashboard" />;
+// ✅ Admin Route (NEW)
+const AdminRoute = ({ children }) => {
+  const { user, token } = useAuthStore();
+
+  if (!token) return <Navigate to="/login" />;
+  if (user?.role !== 'admin') return <Navigate to="/dashboard" />;
+
+  return children;
 };
 
 function App() {
+  const { user } = useAuthStore();
+
   return (
     <BrowserRouter>
       <Routes>
+
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+        <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/dashboard" />} />
+
+        {/* ✅ Dashboard Route FIXED */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              {user?.role === 'admin'
+                ? <Navigate to="/admin" />
+                : <Dashboard />}
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ✅ Admin Route FIXED */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
+          }
+        />
+
         <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
         <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
         <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
         <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
-        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+
         <Route path="/auth/callback" element={<AuthCallback />} />
+
         <Route path="*" element={<Navigate to="/" />} />
+
       </Routes>
     </BrowserRouter>
   );

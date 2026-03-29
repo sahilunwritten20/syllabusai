@@ -14,14 +14,17 @@ export default function Dashboard() {
 
   // ✅ Define functions FIRST before useEffect
   const fetchSyllabus = async () => {
-    try {
-      const res = await syllabusAPI.getMy();
-      setSyllabus(res.data.syllabus);
-    } catch (err) {
-      console.log('Syllabus fetch error:', err);
+  try {
+    const res = await syllabusAPI.getMy();
+    setSyllabus(res.data.syllabus);
+  } catch (err) {
+    if (err.response?.status === 404) {
+      setSyllabus(null);
     }
-    setLoading(false);
-  };
+  } finally {
+    setLoading(false); // ✅ move here
+  }
+};
 
   const fetchMotivation = async () => {
     try {
@@ -33,15 +36,20 @@ export default function Dashboard() {
   };
 
   // ✅ useEffect AFTER functions
-  useEffect(() => {
-    if (!user) return;
-    if (user.role === 'admin') {
-      navigate('/admin');
-      return;
-    }
-    fetchSyllabus();
-    fetchMotivation();
-  }, [user, navigate]);
+ useEffect(() => {
+  if (!user) return;
+
+  // ✅ BLOCK everything for admin
+  if (user.role === 'admin') {
+    navigate('/admin');
+    return;
+  }
+
+  // ✅ ONLY normal users reach here
+  fetchSyllabus();
+  fetchMotivation();
+
+}, [user, navigate]);
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -54,7 +62,7 @@ export default function Dashboard() {
       toast.success('🎯 Syllabus analyzed!');
       setSyllabus(res.data.syllabus);
     } catch (err) {
-      toast.error('Upload failed');
+      toast.error('Upload failed',err);
     }
     setUploading(false);
   };
