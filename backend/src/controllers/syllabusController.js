@@ -45,7 +45,8 @@ const uploadSyllabus = async (req, res) => {
       semester: analyzed.semester,
       subjects: analyzed.subjects,
       totalTopics: analyzed.totalTopics,
-      estimatedHours: analyzed.estimatedHours
+      estimatedHours: analyzed.estimatedHours,
+       isActive: true
     });
 
     // Update user
