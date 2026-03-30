@@ -11,11 +11,7 @@ app.set('trust proxy', 1);
 // ✅ Security Middleware
 app.use(helmet());
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://syllabusai-2qcohlg96-sahilteams.vercel.app',
-    'https://syllabusai-omzeo3zkn-sahilteams.vercel.app'
-  ],
+  origin: true,
   credentials: true
 }));
 
