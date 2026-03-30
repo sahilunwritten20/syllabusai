@@ -123,11 +123,20 @@ export default function Chat() {
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
 
       {/* Navbar */}
-      <nav className="border-b border-gray-800 px-6 py-4 flex justify-between bg-gray-900">
-        <Link to="/dashboard" className="text-2xl font-black">
-          Syllabus<span className="text-blue-500">AI</span>
-        </Link>
-      </nav>
+      <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between bg-gray-900">
+  <Link to="/dashboard" className="text-2xl font-black">
+    Syllabus<span className="text-blue-500">AI</span>
+  </Link>
+  <div className="flex gap-4 text-sm">
+    <Link to="/dashboard" className="text-gray-400 hover:text-white">📊 Dashboard</Link>
+    <Link to="/learn" className="text-gray-400 hover:text-white">📚 Learn</Link>
+    <Link to="/exam" className="text-gray-400 hover:text-white">📝 Exam</Link>
+    <Link to="/career" className="text-gray-400 hover:text-white">💼 Career</Link>
+    <button onClick={clearChat} className="text-gray-400 hover:text-red-400 text-xs border border-gray-700 px-3 py-1 rounded-lg">
+      🗑️ Clear Chat
+    </button>
+  </div>
+</nav>s
 
       <div className="flex flex-1">
 
