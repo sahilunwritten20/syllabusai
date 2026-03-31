@@ -203,27 +203,36 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link to="/chat" className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-center transition">
-                <div className="text-3xl mb-2">🤖</div>
-                <div className="font-bold">AI Agents</div>
-              </Link>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
 
-              <Link to="/learn" className="bg-purple-600 hover:bg-purple-700 rounded-2xl p-6 text-center transition">
-                <div className="text-3xl mb-2">📚</div>
-                <div className="font-bold">Learn</div>
-              </Link>
+  <Link to="/chat" className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">🤖</div>
+    <div className="font-bold">AI Agents</div>
+  </Link>
 
-              <Link to="/exam" className="bg-green-600 hover:bg-green-700 rounded-2xl p-6 text-center transition">
-                <div className="text-3xl mb-2">📝</div>
-                <div className="font-bold">Take Quiz</div>
-              </Link>
+  <Link to="/learn" className="bg-purple-600 hover:bg-purple-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">📚</div>
+    <div className="font-bold">Learn</div>
+  </Link>
 
-              <Link to="/career" className="bg-yellow-600 hover:bg-yellow-700 rounded-2xl p-6 text-center transition">
-                <div className="text-3xl mb-2">💼</div>
-                <div className="font-bold">Career</div>
-              </Link>
-            </div>
+  <Link to="/exam" className="bg-green-600 hover:bg-green-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">📝</div>
+    <div className="font-bold">Take Quiz</div>
+  </Link>
+
+  <Link to="/career" className="bg-yellow-600 hover:bg-yellow-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">💼</div>
+    <div className="font-bold">Career</div>
+  </Link>
+
+  {/* ✅ ADD THIS */}
+  <Link to="/test" className="bg-pink-600 hover:bg-pink-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">🧪</div>
+    <div className="font-bold">Test AI</div>
+    <div className="text-pink-200 text-xs mt-1">Evaluate quality</div>
+  </Link>
+
+</div>
           </>
         )}
       </div>
