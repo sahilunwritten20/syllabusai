@@ -1,6 +1,8 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+
 const Subscription = require('../models/Subscription');
+const User = require('../models/User');
 const PLANS = require('../config/plans');
 
 const razorpay = new Razorpay({
@@ -8,23 +10,31 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// Create order
+
+// ✅ Create Razorpay Order
 const createOrder = async (req, res) => {
   try {
     const { plan } = req.body;
 
+    // ❌ Prevent invalid / free plan
     if (!PLANS[plan] || plan === 'free') {
-      return res.status(400).json({ success: false, message: 'Invalid plan' });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid plan selected'
+      });
     }
 
     const order = await razorpay.orders.create({
-      amount: PLANS[plan].price,
+      amount: PLANS[plan].price, // in paise
       currency: 'INR',
       receipt: `receipt_${req.user.userId}_${Date.now()}`,
-      notes: { userId: req.user.userId, plan }
+      notes: {
+        userId: req.user.userId,
+        plan
+      }
     });
 
-    res.json({
+    return res.status(200).json({
       success: true,
       order,
       key: process.env.RAZORPAY_KEY_ID,
@@ -34,15 +44,27 @@ const createOrder = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('Create Order Error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create order'
+    });
   }
 };
 
-// Verify payment
+
+// ✅ Verify Payment & Activate Subscription
 const verifyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } = req.body;
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      plan
+    } = req.body;
 
+    // 🔒 Verify signature
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expected = crypto
@@ -51,13 +73,18 @@ const verifyPayment = async (req, res) => {
       .digest('hex');
 
     if (expected !== razorpay_signature) {
-      return res.status(400).json({ success: false, message: 'Invalid signature' });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature'
+      });
     }
 
+    // 🔥 Calculate expiry
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + PLANS[plan].duration);
 
-    await Subscription.findOneAndUpdate(
+    // ✅ Update subscription
+    const subscription = await Subscription.findOneAndUpdate(
       { userId: req.user.userId },
       {
         plan,
@@ -71,14 +98,31 @@ const verifyPayment = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    res.json({
+    // 🔥 RESET USAGE AFTER PAYMENT (VERY IMPORTANT)
+    await User.findByIdAndUpdate(req.user.userId, {
+      aiMessagesUsed: 0,
+      syllabusUploadsUsed: 0
+    });
+
+    return res.status(200).json({
       success: true,
-      message: `🎉 ${PLANS[plan].name} activated!`
+      message: `🎉 ${PLANS[plan].name} activated successfully!`,
+      subscription
     });
 
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('Payment Verification Error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Payment verification failed'
+    });
   }
 };
 
-module.exports = { createOrder, verifyPayment };
+
+module.exports = {
+  createOrder,
+  verifyPayment
+};
+

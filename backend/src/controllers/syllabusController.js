@@ -1,13 +1,19 @@
 const fs = require('fs');
 const pdfParse = require('pdf-parse');
+
 const Syllabus = require('../models/Syllabus');
 const User = require('../models/User');
+const Subscription = require('../models/Subscription');
+
 const { analyzeSyllabus } = require('../agents/syllabusAgent');
+
 
 // ✅ Upload + Analyze Syllabus
 const uploadSyllabus = async (req, res) => {
+  let filePath = null;
+
   try {
-    // Check file uploaded
+    // ✅ Check file uploaded
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -15,8 +21,29 @@ const uploadSyllabus = async (req, res) => {
       });
     }
 
-    // Read PDF
-    const pdfBuffer = fs.readFileSync(req.file.path);
+    filePath = req.file.path;
+
+    // 🔥 Get user + subscription
+    const user = await User.findById(req.user.userId);
+    const sub = await Subscription.findOne({ userId: req.user.userId });
+
+    if (!user || !sub) {
+      return res.status(403).json({
+        success: false,
+        message: 'User or subscription not found'
+      });
+    }
+
+    // 🔥 CHECK UPLOAD LIMIT
+    if (user.syllabusUploadsUsed >= sub.features.maxSyllabusUploads) {
+      return res.status(403).json({
+        success: false,
+        message: '🚫 Upload limit reached. Upgrade your plan 🚀'
+      });
+    }
+
+    // ✅ Read PDF
+    const pdfBuffer = fs.readFileSync(filePath);
     const pdfData = await pdfParse(pdfBuffer);
     const syllabusText = pdfData.text;
 
@@ -29,15 +56,15 @@ const uploadSyllabus = async (req, res) => {
 
     console.log('📄 PDF read successfully, sending to AI...');
 
-    // Send to AI Agent
+    // ✅ AI Analyze
     const analyzed = await analyzeSyllabus(syllabusText);
 
     console.log('🤖 AI analyzed syllabus:', analyzed.branch, analyzed.semester);
 
-    // Delete any existing syllabus for this user
+    // ✅ Delete old syllabus
     await Syllabus.findOneAndDelete({ userId: req.user.userId });
 
-    // Save to database
+    // ✅ Save new syllabus
     const syllabus = await Syllabus.create({
       userId: req.user.userId,
       fileName: req.file.originalname,
@@ -46,20 +73,23 @@ const uploadSyllabus = async (req, res) => {
       subjects: analyzed.subjects,
       totalTopics: analyzed.totalTopics,
       estimatedHours: analyzed.estimatedHours,
-       isActive: true
+      isActive: true
     });
 
-    // Update user
-    await User.findByIdAndUpdate(req.user.userId, {
-      syllabusUploaded: true,
-      branch: analyzed.branch,
-      semester: analyzed.semester
-    });
+    // ✅ Update user info + increment usage
+    user.syllabusUploaded = true;
+    user.branch = analyzed.branch;
+    user.semester = analyzed.semester;
+    user.syllabusUploadsUsed += 1;
 
-    // Delete uploaded file
-    fs.unlinkSync(req.file.path);
+    await user.save();
 
-    res.status(201).json({
+    // ✅ Delete file safely
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    return res.status(201).json({
       success: true,
       message: '🎯 Syllabus analyzed successfully!',
       syllabus: {
@@ -78,12 +108,20 @@ const uploadSyllabus = async (req, res) => {
 
   } catch (error) {
     console.error('Syllabus upload error:', error);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message: 'Upload failed. Please try again.'
     });
+
+  } finally {
+    // 🔥 Always delete file (even on error)
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 };
+
 
 // ✅ Get My Syllabus
 const getMySyllabus = async (req, res) => {
@@ -113,12 +151,14 @@ const getMySyllabus = async (req, res) => {
   }
 };
 
+
 // ✅ Mark Topic Complete
 const markTopicComplete = async (req, res) => {
   try {
     const { subjectId, unitId, topicId } = req.params;
 
     const syllabus = await Syllabus.findOne({ userId: req.user.userId });
+
     if (!syllabus) {
       return res.status(404).json({
         success: false,
@@ -126,7 +166,6 @@ const markTopicComplete = async (req, res) => {
       });
     }
 
-    // Find and update topic
     const subject = syllabus.subjects.id(subjectId);
     const unit = subject.units.id(unitId);
     const topic = unit.topics.id(topicId);
@@ -134,7 +173,6 @@ const markTopicComplete = async (req, res) => {
     topic.isCompleted = true;
     topic.completedAt = new Date();
 
-    // Recalculate progress
     let totalTopics = 0;
     let completedTopics = 0;
 
@@ -145,11 +183,14 @@ const markTopicComplete = async (req, res) => {
           if (t.isCompleted) completedTopics++;
         });
       });
-      // Update subject progress
+
       const subTotal = sub.units.reduce((a, u) => a + u.topics.length, 0);
       const subDone = sub.units.reduce((a, u) =>
         a + u.topics.filter(t => t.isCompleted).length, 0);
-      sub.progress = subTotal > 0 ? Math.round((subDone / subTotal) * 100) : 0;
+
+      sub.progress = subTotal > 0
+        ? Math.round((subDone / subTotal) * 100)
+        : 0;
     });
 
     syllabus.completedTopics = completedTopics;
@@ -173,4 +214,10 @@ const markTopicComplete = async (req, res) => {
   }
 };
 
-module.exports = { uploadSyllabus, getMySyllabus, markTopicComplete };
+
+module.exports = {
+  uploadSyllabus,
+  getMySyllabus,
+  markTopicComplete
+};
+
