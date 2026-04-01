@@ -117,7 +117,14 @@ export default function Chat() {
         toast.loading('Converting...', { id: 'voice' });
 
         try {
-          const res = await API.post('/voice/speech-to-text', formData);
+          const token = localStorage.getItem('token');
+
+const res = await API.post('/voice/speech-to-text', formData, {
+  headers: {
+    'Content-Type': 'multipart/form-data',
+    Authorization: `Bearer ${token}`
+  }
+});
 
           if (res.data.success) {
             setInput(res.data.text);
