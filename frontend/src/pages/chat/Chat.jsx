@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://syllabusai-backend.onrender.com',
+  baseURL: import.meta.env.VITE_API_URL || 'https://syllabusai-backend.onrender.com/api',
   withCredentials: true
 });
 
@@ -26,12 +26,15 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recording, setRecording] = useState(false);
 
+  // 🎤 Voice states
+  const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+
   const messagesEndRef = useRef(null);
 
-  // Scroll to bottom
+  // Scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -61,12 +64,7 @@ export default function Chat() {
 
     try {
       const res = await chatAPI.sendMessage(input, activeAgent.id);
-
-      const aiMsg = {
-        role: 'assistant',
-        content: res.data.message
-      };
-
+      const aiMsg = { role: 'assistant', content: res.data.message };
       setMessages(prev => [...prev, aiMsg]);
     } catch {
       toast.error('Failed to send message');
@@ -82,47 +80,76 @@ export default function Chat() {
     toast.success('Chat cleared!');
   };
 
-  // 🎤 Voice Start
-  const startVoice = async () => {
+  // 🎤 START RECORDING
+  const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
+      });
 
-      const chunks = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
 
-      recorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
 
-      recorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+
+        if (blob.size < 100) {
+          toast.error('Recording too short!');
+          return;
+        }
 
         const formData = new FormData();
         formData.append('audio', blob, 'recording.webm');
 
+        toast.loading('Converting...', { id: 'voice' });
+
         try {
           const res = await API.post('/voice/speech-to-text', formData);
-          setInput(res.data.text || '');
-          toast.success('Voice captured!');
-        } catch {
-          toast.error('Voice failed');
+
+          if (res.data.success) {
+            setInput(res.data.text);
+            toast.success('Voice captured 🎤', { id: 'voice' });
+          } else {
+            toast.error('Voice failed', { id: 'voice' });
+          }
+        } catch (err) {
+          toast.error('Voice failed', { id: 'voice' });
         }
       };
 
-      recorder.start();
+      mediaRecorder.start();
       setRecording(true);
 
-      // Auto stop after 10s
-      setTimeout(() => stopRecording(stream), 10000);
+      // Auto stop (15s)
+      setTimeout(() => {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          stopRecording();
+        }
+      }, 15000);
 
     } catch {
-      toast.error('Microphone access denied');
+      toast.error('Mic permission denied');
     }
   };
 
-  // 🎤 Stop Voice
-  const stopRecording = (stream) => {
-    mediaRecorderRef.current?.stop();
-    stream?.getTracks().forEach(t => t.stop());
+  // 🎤 STOP RECORDING
+  const stopRecording = () => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
     setRecording(false);
   };
 
@@ -141,10 +168,7 @@ export default function Chat() {
           <Link to="/exam">📝 Exam</Link>
           <Link to="/career">💼 Career</Link>
 
-          <button
-            onClick={clearChat}
-            className="border px-3 py-1 rounded-lg text-red-400"
-          >
+          <button onClick={clearChat} className="border px-3 py-1 rounded-lg text-red-400">
             🗑️ Clear
           </button>
         </div>
@@ -169,25 +193,16 @@ export default function Chat() {
           ))}
         </div>
 
-        {/* Chat Area */}
+        {/* Chat */}
         <div className="flex-1 flex flex-col">
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${
-                  msg.role === 'user' ? 'justify-end' : ''
-                }`}
-              >
-                <div
-                  className={`px-4 py-3 rounded-xl ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600'
-                      : 'bg-gray-800'
-                  }`}
-                >
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                <div className={`px-4 py-3 rounded-xl ${
+                  msg.role === 'user' ? 'bg-blue-600' : 'bg-gray-800'
+                }`}>
                   {msg.content}
                 </div>
               </div>
@@ -195,18 +210,14 @@ export default function Chat() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {/* INPUT + VOICE */}
           <div className="border-t border-gray-800 p-4 bg-gray-900">
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
 
-              {/* Mic */}
+              {/* MIC */}
               <button
-                onClick={() =>
-                  recording
-                    ? stopRecording()
-                    : startVoice()
-                }
-                className={`px-4 py-3 rounded-xl ${
+                onClick={recording ? stopRecording : startRecording}
+                className={`p-3 rounded-xl ${
                   recording
                     ? 'bg-red-600 animate-pulse'
                     : 'bg-gray-700'
@@ -215,17 +226,17 @@ export default function Chat() {
                 {recording ? '⏹️' : '🎤'}
               </button>
 
-              {/* Input */}
+              {/* INPUT */}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder={`Ask ${activeAgent.name}...`}
+                placeholder={recording ? 'Recording...' : `Ask ${activeAgent.name}...`}
                 className="flex-1 bg-gray-800 px-4 py-3 rounded-xl outline-none"
-                disabled={loading}
+                disabled={loading || recording}
               />
 
-              {/* Send */}
+              {/* SEND */}
               <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
@@ -233,12 +244,11 @@ export default function Chat() {
               >
                 ↑
               </button>
-
             </div>
 
             {recording && (
               <p className="text-red-400 text-xs mt-2 text-center animate-pulse">
-                🎤 Recording... speak now
+                🎤 Recording...
               </p>
             )}
           </div>
