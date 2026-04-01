@@ -32,7 +32,7 @@ const createOrder = async (req, res) => {
     const order = await razorpay.orders.create({
       amount: PLANS[plan].price, // in paise
       currency: 'INR',
-      receipt: `receipt_${req.user.userId}_${Date.now()}`,
+      receipt:  `rcpt_${Date.now()}`,
       notes: {
         userId: req.user.userId,
         plan
