@@ -1,16 +1,7 @@
-const express = require('express');
-const router = express.Router();
+const router = require('express').Router();
 const { protect } = require('../middleware/auth');
-const upload = require('../middleware/upload');
-const {
-  uploadSyllabus,
-  getMySyllabus,
-  markTopicComplete
-} = require('../controllers/syllabusController');
+const { getMySubscription } = require('../controllers/subscriptionController');
 
-// All routes are protected
-router.post('/upload', protect, upload.single('syllabus'), uploadSyllabus);
-router.get('/my', protect, getMySyllabus);
-router.patch('/complete/:subjectId/:unitId/:topicId', protect, markTopicComplete);
+router.get('/', protect, getMySubscription);
 
 module.exports = router;

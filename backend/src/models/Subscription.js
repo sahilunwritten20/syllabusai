@@ -1,39 +1,38 @@
 const mongoose = require('mongoose');
 
 const subscriptionSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  userId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true,
+    index: true
   },
 
-  plan: {
-    type: String,
-    enum: ['free', 'pro'],
-    default: 'free'
+  plan: { 
+    type: String, 
+    enum: ['free', 'pro', 'college'], 
+    default: 'free' 
   },
 
-  usage: {
-    messagesUsed: { type: Number, default: 0 },
-    syllabusUploads: { type: Number, default: 0 }
+  status: { 
+    type: String, 
+    enum: ['active', 'cancelled', 'expired'], 
+    default: 'active' 
   },
 
-  limits: {
-    messages: { type: Number, default: 50 },
-    uploads: { type: Number, default: 1 }
+  startDate: { type: Date, default: Date.now },
+  endDate: { type: Date },
+
+  features: {
+    maxSyllabusUploads: Number,
+    maxAIMessages: Number,
+    voiceEnabled: Boolean,
+    allAgents: Boolean
   },
 
-  status: {
-    type: String,
-    enum: ['active', 'expired'],
-    default: 'active'
-  },
-paymentId: { 
-    type: String 
-},
-orderId:{
-     type: String 
-    },
+  paymentId: String,
+  orderId: String
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Subscription', subscriptionSchema);
