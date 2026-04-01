@@ -13,6 +13,7 @@ import Career from './pages/career/Career';
 import AuthCallback from './pages/auth/AuthCallback';
 import Admin from './pages/admin/Admin';
 import TestEval from './pages/test/TestEval';
+import Settings from './pages/settings/Settings';
 
 // ✅ Protected Route
 const ProtectedRoute = ({ children }) => {
@@ -88,6 +89,7 @@ function App() {
         <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
         <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
         <Route path="/test" element={<ProtectedRoute><TestEval /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
         <Route path="/auth/callback" element={<AuthCallback />} />
 

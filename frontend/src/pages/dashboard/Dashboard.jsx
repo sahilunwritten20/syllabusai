@@ -83,11 +83,12 @@ export default function Dashboard() {
         <h1 className="text-2xl font-black">
           Syllabus<span className="text-blue-500">AI</span>
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           <Link to="/chat" className="text-gray-400 hover:text-white transition text-sm">🤖 AI Chat</Link>
           <Link to="/learn" className="text-gray-400 hover:text-white transition text-sm">📚 Learn</Link>
           <Link to="/exam" className="text-gray-400 hover:text-white transition text-sm">📝 Exam</Link>
           <Link to="/career" className="text-gray-400 hover:text-white transition text-sm">💼 Career</Link>
+          <Link to="/settings" className="text-gray-400 hover:text-white transition text-sm">⚙️ Settings</Link>
           <button
             onClick={handleLogout}
             className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-sm font-medium transition"
@@ -204,7 +205,6 @@ export default function Dashboard() {
             </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-
   <Link to="/chat" className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-center transition">
     <div className="text-3xl mb-2">🤖</div>
     <div className="font-bold">AI Agents</div>
@@ -225,13 +225,12 @@ export default function Dashboard() {
     <div className="font-bold">Career</div>
   </Link>
 
-  {/* ✅ ADD THIS */}
+  {/* ✅ NEW TEST BUTTON */}
   <Link to="/test" className="bg-pink-600 hover:bg-pink-700 rounded-2xl p-6 text-center transition">
     <div className="text-3xl mb-2">🧪</div>
     <div className="font-bold">Test AI</div>
     <div className="text-pink-200 text-xs mt-1">Evaluate quality</div>
   </Link>
-
 </div>
           </>
         )}

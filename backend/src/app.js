@@ -72,6 +72,24 @@ app.use('/api/voice', voiceRoutes);
 const adminRoutes = require('./routes/adminRoutes');
 app.use('/api/admin', adminRoutes);
 
+const toolsRoutes = require('./routes/toolsRoutes');
+app.use('/api/tools', toolsRoutes);
+
+const apiKeyRoutes = require('./routes/apiKeyRoutes');
+app.use('/api/keys', apiKeyRoutes);
+
+const promptRoutes = require('./routes/promptRoutes');
+app.use('/api/prompts', promptRoutes);
+
+const workspaceRoutes = require('./routes/workspaceRoutes');
+app.use('/api/workspaces', workspaceRoutes);
+
+const paymentRoutes = require('./routes/paymentRoutes');
+app.use('/api/payment', paymentRoutes);
+
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+app.use('/api/subscription', subscriptionRoutes);
+
 // ✅ 404 Handler
 app.use( (req, res) => {
   res.status(404).json({
