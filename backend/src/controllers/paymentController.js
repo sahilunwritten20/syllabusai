@@ -16,6 +16,9 @@ const createOrder = async (req, res) => {
   try {
     const { plan } = req.body;
 
+    console.log("👉 PLAN RECEIVED:", plan);
+    console.log("👉 KEY ID:", process.env.RAZORPAY_KEY_ID);
+
     // ❌ Prevent invalid / free plan
     if (!PLANS[plan] || plan === 'free') {
       return res.status(400).json({
@@ -23,6 +26,8 @@ const createOrder = async (req, res) => {
         message: 'Invalid plan selected'
       });
     }
+
+    console.log("👉 PLAN CONFIG:", PLANS[plan]);
 
     const order = await razorpay.orders.create({
       amount: PLANS[plan].price, // in paise
@@ -34,6 +39,8 @@ const createOrder = async (req, res) => {
       }
     });
 
+    console.log("✅ ORDER CREATED:", order.id);
+
     return res.status(200).json({
       success: true,
       order,
@@ -44,11 +51,11 @@ const createOrder = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Create Order Error:', err);
+    console.error("❌ CREATE ORDER ERROR FULL:", err);
 
     return res.status(500).json({
       success: false,
-      message: 'Failed to create order'
+      message: err.message // 👈 IMPORTANT (show real error)
     });
   }
 };
