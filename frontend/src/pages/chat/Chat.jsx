@@ -66,9 +66,10 @@ export default function Chat() {
       const res = await chatAPI.sendMessage(input, activeAgent.id);
       const aiMsg = { role: 'assistant', content: res.data.message };
       setMessages(prev => [...prev, aiMsg]);
-    } catch {
-      toast.error('Failed to send message');
-    }
+    } catch (err) {
+  console.error(err);
+  toast.error(err.response?.data?.message || 'Failed to send message');
+}
 
     setLoading(false);
   };

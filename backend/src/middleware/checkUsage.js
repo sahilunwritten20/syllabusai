@@ -1,43 +1,37 @@
 const Subscription = require('../models/Subscription');
+const PLANS = require('../config/plans');
 
 const checkUsage = (type) => {
   return async (req, res, next) => {
     try {
-      const sub = await Subscription.findOne({ userId: req.user.userId });
+      let sub = await Subscription.findOne({ userId: req.user.userId });
 
+      // ✅ AUTO CREATE FREE PLAN
       if (!sub) {
-        return res.status(403).json({ message: 'No subscription found' });
+        sub = await Subscription.create({
+          userId: req.user.userId,
+          plan: 'free',
+          status: 'active',
+          features: PLANS.free.features
+        });
       }
 
-      // Expiry check
-      if (sub.endDate && sub.endDate < new Date()) {
-        sub.plan = 'free';
-        sub.status = 'expired';
-        await sub.save();
-      }
-
-      // AI usage
+      // ✅ AI LIMIT
       if (type === 'ai') {
         if (req.user.aiMessagesUsed >= sub.features.maxAIMessages) {
           return res.status(403).json({
-            message: 'AI message limit reached. Upgrade 🚀'
-          });
-        }
-      }
-
-      // Upload usage
-      if (type === 'upload') {
-        if (req.user.syllabusUploadsUsed >= sub.features.maxSyllabusUploads) {
-          return res.status(403).json({
-            message: 'Upload limit reached. Upgrade 🚀'
+            success: false,
+            message: 'AI limit reached 🚀'
           });
         }
       }
 
       next();
-
     } catch (err) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({
+        success: false,
+        message: err.message
+      });
     }
   };
 };
