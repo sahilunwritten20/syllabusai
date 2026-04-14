@@ -1,8 +1,9 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL:'https://syllabusai-backend.onrender.com/api',
-  withCredentials: true
+  baseURL: 'https://syllabusai-backend.onrender.com/api',
+  withCredentials: true,
+  timeout: 120000 // 2 minutes for large files
 });
 
 // Add token to every request

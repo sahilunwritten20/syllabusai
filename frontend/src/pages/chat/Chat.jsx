@@ -4,6 +4,7 @@ import { chatAPI } from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://syllabusai-backend.onrender.com/api',
@@ -27,7 +28,6 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 🎤 Voice states
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -53,7 +53,7 @@ export default function Chat() {
     }
   };
 
-  // Send message
+  // ✅ SEND MESSAGE
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -64,17 +64,23 @@ export default function Chat() {
 
     try {
       const res = await chatAPI.sendMessage(input, activeAgent.id);
-      const aiMsg = { role: 'assistant', content: res.data.message };
+
+      const aiMsg = {
+        role: 'assistant',
+        content: res.data.message
+      };
+
       setMessages(prev => [...prev, aiMsg]);
+
     } catch (err) {
-  console.error(err);
-  toast.error(err.response?.data?.message || 'Failed to send message');
-}
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to send message');
+    }
 
     setLoading(false);
   };
 
-  // Clear chat
+  // ✅ CLEAR CHAT
   const clearChat = async () => {
     await chatAPI.clearChat(activeAgent.id);
     setMessages([]);
@@ -84,25 +90,17 @@ export default function Chat() {
   // 🎤 START RECORDING
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        }
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
-      mediaRecorder.onstop = async () => {
+      recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
 
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
@@ -120,12 +118,11 @@ export default function Chat() {
         try {
           const token = localStorage.getItem('token');
 
-const res = await API.post('/voice/speech-to-text', formData, {
-  headers: {
-    'Content-Type': 'multipart/form-data',
-    Authorization: `Bearer ${token}`
-  }
-});
+          const res = await API.post('/voice/speech-to-text', formData, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
 
           if (res.data.success) {
             setInput(res.data.text);
@@ -133,15 +130,19 @@ const res = await API.post('/voice/speech-to-text', formData, {
           } else {
             toast.error('Voice failed', { id: 'voice' });
           }
+
         } catch (err) {
-          toast.error('Voice failed', { id: 'voice' });
+          toast.error(
+            err.response?.data?.message || 'Voice failed',
+            { id: 'voice' }
+          );
         }
       };
 
-      mediaRecorder.start();
+      recorder.start();
       setRecording(true);
 
-      // Auto stop (15s)
+      // auto stop
       setTimeout(() => {
         if (mediaRecorderRef.current?.state === 'recording') {
           stopRecording();
@@ -149,11 +150,11 @@ const res = await API.post('/voice/speech-to-text', formData, {
       }, 15000);
 
     } catch {
-      toast.error('Mic permission denied');
+      toast.error('Microphone permission denied');
     }
   };
 
-  // 🎤 STOP RECORDING
+  // 🎤 STOP
   const stopRecording = () => {
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
@@ -164,7 +165,7 @@ const res = await API.post('/voice/speech-to-text', formData, {
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
 
-      {/* Navbar */}
+      {/* NAVBAR */}
       <nav className="border-b border-gray-800 px-6 py-4 flex justify-between bg-gray-900">
         <Link to="/dashboard" className="text-2xl font-black">
           Syllabus<span className="text-blue-500">AI</span>
@@ -184,7 +185,7 @@ const res = await API.post('/voice/speech-to-text', formData, {
 
       <div className="flex flex-1">
 
-        {/* Sidebar */}
+        {/* SIDEBAR */}
         <div className="w-56 bg-gray-900 p-4 border-r border-gray-800">
           {AGENTS.map(agent => (
             <button
@@ -201,24 +202,37 @@ const res = await API.post('/voice/speech-to-text', formData, {
           ))}
         </div>
 
-        {/* Chat */}
+        {/* CHAT */}
         <div className="flex-1 flex flex-col">
 
-          {/* Messages */}
+          {/* MESSAGES */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                <div className={`px-4 py-3 rounded-xl ${
-                  msg.role === 'user' ? 'bg-blue-600' : 'bg-gray-800'
+                
+                <div className={`px-4 py-3 rounded-xl max-w-3xl ${
+                  msg.role === 'user'
+                    ? 'bg-blue-600'
+                    : 'bg-gray-800'
                 }`}>
-                  {msg.content}
+                  
+                  {msg.role === 'user' ? (
+                    <p className="text-sm">{msg.content}</p>
+                  ) : (
+                    <ReactMarkdown
+                      className="text-sm prose prose-invert max-w-none"
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  )}
+
                 </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* INPUT + VOICE */}
+          {/* INPUT */}
           <div className="border-t border-gray-800 p-4 bg-gray-900">
             <div className="flex gap-3 items-center">
 
@@ -226,9 +240,7 @@ const res = await API.post('/voice/speech-to-text', formData, {
               <button
                 onClick={recording ? stopRecording : startRecording}
                 className={`p-3 rounded-xl ${
-                  recording
-                    ? 'bg-red-600 animate-pulse'
-                    : 'bg-gray-700'
+                  recording ? 'bg-red-600 animate-pulse' : 'bg-gray-700'
                 }`}
               >
                 {recording ? '⏹️' : '🎤'}
@@ -252,6 +264,7 @@ const res = await API.post('/voice/speech-to-text', formData, {
               >
                 ↑
               </button>
+
             </div>
 
             {recording && (
