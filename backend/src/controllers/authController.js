@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const crypto = require('crypto');
+const { sendPasswordResetEmail } = require('../services/emailService');
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -139,4 +141,91 @@ const logout = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getMe, logout };
+// ✅ Forgot Password
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email'
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpiry = resetExpiry;
+    await user.save();
+
+    // Send email
+    await sendPasswordResetEmail(user.email, resetToken, user.name);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset link sent to your email! ✅'
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send reset email'
+    });
+  }
+};
+
+// ✅ Reset Password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token and new password required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpiry: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset link'
+      });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiry = undefined;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully! Please login. ✅'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
+    });
+  }
+};
+module.exports = { signup, login, getMe, logout, forgotPassword, resetPassword };

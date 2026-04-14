@@ -46,6 +46,9 @@ const userSchema = new mongoose.Schema({
   // 🔥 NEW FIELDS (VERY IMPORTANT FOR SAAS)
   aiMessagesUsed: { type: Number, default: 0 },
   syllabusUploadsUsed: { type: Number, default: 0 },
+  
+resetPasswordToken: { type: String },
+resetPasswordExpiry: { type: Date }, 
 
 }, { timestamps: true });
 

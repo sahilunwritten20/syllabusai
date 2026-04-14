@@ -38,7 +38,9 @@ export const authAPI = {
   signup: (data) => API.post('/auth/signup', data),
   login: (data) => API.post('/auth/login', data),
   getMe: () => API.get('/auth/me'),
-  logout: () => API.post('/auth/logout')
+  logout: () => API.post('/auth/logout'),
+  forgotPassword: (email) => API.post('/auth/forgot-password', { email }),
+  resetPassword: (token, newPassword) => API.post('/auth/reset-password', { token, newPassword })
 };
 
 // Syllabus APIs

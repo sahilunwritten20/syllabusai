@@ -14,7 +14,10 @@ import AuthCallback from './pages/auth/AuthCallback';
 import Admin from './pages/admin/Admin';
 import TestEval from './pages/test/TestEval';
 import Settings from './pages/settings/Settings';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 
+// Add inside Routes:
 // ✅ Protected Route
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuthStore();
@@ -90,6 +93,8 @@ function App() {
         <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
         <Route path="/test" element={<ProtectedRoute><TestEval /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/auth/callback" element={<AuthCallback />} />
 
