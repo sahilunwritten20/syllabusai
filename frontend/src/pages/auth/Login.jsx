@@ -61,7 +61,7 @@ export default function Login() {
                 required
               />
             </div>
-            // Add below password input
+
 <div className="text-right">
   <Link to="/forgot-password" className="text-blue-400 hover:text-blue-300 text-sm">
     Forgot password?
