@@ -1,22 +1,12 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  family: 4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  logger: true,
-  debug: true
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 const sendPasswordResetEmail = async (email, resetToken, userName) => {
   const resetURL = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-  const mailOptions = {
-    from: `"SyllabusAI" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from: 'SyllabusAI <onboarding@resend.dev>',
     to: email,
     subject: 'Reset Password',
     html: `
@@ -26,9 +16,7 @@ const sendPasswordResetEmail = async (email, resetToken, userName) => {
       <a href="${resetURL}">${resetURL}</a>
       <p>This link expires in 15 minutes</p>
     `
-  };
-
-  await transporter.sendMail(mailOptions);
+  });
 };
 
 module.exports = { sendPasswordResetEmail };
