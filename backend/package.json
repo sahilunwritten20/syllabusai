@@ -43,6 +43,7 @@
     "pdf-parse": "^1.1.1",
     "razorpay": "^2.9.6",
     "redis": "^5.11.0",
+    "resend": "^6.11.0",
     "socket.io": "^4.8.3",
     "uuid": "^13.0.0",
     "validator": "^13.15.26"
