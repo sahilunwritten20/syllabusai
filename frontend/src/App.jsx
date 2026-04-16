@@ -17,14 +17,13 @@ import Settings from './pages/settings/Settings';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 
-// Add inside Routes:
-// ✅ Protected Route
+// Protected Route
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuthStore();
   return token ? children : <Navigate to="/login" />;
 };
 
-// ✅ Admin Route (NEW)
+// Admin Route
 const AdminRoute = ({ children }) => {
   const { user, token } = useAuthStore();
 
@@ -38,70 +37,73 @@ function App() {
   const { user } = useAuthStore();
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <div className="w-full max-w-full overflow-x-hidden">
+      <BrowserRouter>
+        <Routes>
 
-        <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Landing />} />
 
-        <Route 
-  path="/login" 
-  element={
-    !user 
-      ? <Login /> 
-      : user.role === 'admin' 
-        ? <Navigate to="/admin" /> 
-        : <Navigate to="/dashboard" />
-  } 
-/>
+          <Route
+            path="/login"
+            element={
+              !user
+                ? <Login />
+                : user.role === 'admin'
+                  ? <Navigate to="/admin" />
+                  : <Navigate to="/dashboard" />
+            }
+          />
 
-<Route 
-  path="/signup" 
-  element={
-    !user 
-      ? <Signup /> 
-      : user.role === 'admin' 
-        ? <Navigate to="/admin" /> 
-        : <Navigate to="/dashboard" />
-  } 
-/>
+          <Route
+            path="/signup"
+            element={
+              !user
+                ? <Signup />
+                : user.role === 'admin'
+                  ? <Navigate to="/admin" />
+                  : <Navigate to="/dashboard" />
+            }
+          />
 
-        {/* ✅ Dashboard Route FIXED */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              {user?.role === 'admin'
-                ? <Navigate to="/admin" />
-                : <Dashboard />}
-            </ProtectedRoute>
-          }
-        />
+          {/* Dashboard */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                {user?.role === 'admin'
+                  ? <Navigate to="/admin" />
+                  : <Dashboard />}
+              </ProtectedRoute>
+            }
+          />
 
-        {/* ✅ Admin Route FIXED */}
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <Admin />
-            </AdminRoute>
-          }
-        />
+          {/* Admin */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <Admin />
+              </AdminRoute>
+            }
+          />
 
-        <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-        <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
-        <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
-        <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
-        <Route path="/test" element={<ProtectedRoute><TestEval /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+          <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
+          <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
+          <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
+          <Route path="/test" element={<ProtectedRoute><TestEval /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
-        <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        <Route path="*" element={<Navigate to="/" />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<Navigate to="/" />} />
+
+        </Routes>
+      </BrowserRouter>
+    </div>
   );
 }
 
