@@ -34,10 +34,12 @@ export default function Chat() {
 
   const messagesEndRef = useRef(null);
 
+  // Scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Load history
   useEffect(() => {
     loadHistory();
   }, [activeAgent]);
@@ -51,6 +53,7 @@ export default function Chat() {
     }
   };
 
+  // ✅ SEND MESSAGE
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -61,8 +64,14 @@ export default function Chat() {
 
     try {
       const res = await chatAPI.sendMessage(input, activeAgent.id);
-      const aiMsg = { role: 'assistant', content: res.data.message };
+
+      const aiMsg = {
+        role: 'assistant',
+        content: res.data.message
+      };
+
       setMessages(prev => [...prev, aiMsg]);
+
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to send message');
@@ -71,12 +80,14 @@ export default function Chat() {
     setLoading(false);
   };
 
+  // ✅ CLEAR CHAT
   const clearChat = async () => {
     await chatAPI.clearChat(activeAgent.id);
     setMessages([]);
     toast.success('Chat cleared!');
   };
 
+  // 🎤 START RECORDING
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -121,13 +132,17 @@ export default function Chat() {
           }
 
         } catch (err) {
-          toast.error(err.response?.data?.message || 'Voice failed', { id: 'voice' });
+          toast.error(
+            err.response?.data?.message || 'Voice failed',
+            { id: 'voice' }
+          );
         }
       };
 
       recorder.start();
       setRecording(true);
 
+      // auto stop
       setTimeout(() => {
         if (mediaRecorderRef.current?.state === 'recording') {
           stopRecording();
@@ -139,6 +154,7 @@ export default function Chat() {
     }
   };
 
+  // 🎤 STOP
   const stopRecording = () => {
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
@@ -167,31 +183,18 @@ export default function Chat() {
         </div>
       </nav>
 
-      {/* MOBILE AGENT SELECTOR */}
-      <div className="flex md:hidden overflow-x-auto gap-2 p-3 bg-gray-900 border-b border-gray-800">
-        {AGENTS.map(agent => (
-          <button
-            key={agent.id}
-            onClick={() => setActiveAgent(agent)}
-            className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-medium ${
-              activeAgent.id === agent.id ? 'bg-blue-600' : 'bg-gray-800'
-            }`}
-          >
-            {agent.icon} {agent.name}
-          </button>
-        ))}
-      </div>
-
       <div className="flex flex-1">
 
-        {/* DESKTOP SIDEBAR */}
-        <div className="hidden md:flex w-56 bg-gray-900 p-4 border-r border-gray-800 flex-col flex-shrink-0">
+        {/* SIDEBAR */}
+        <div className="w-56 bg-gray-900 p-4 border-r border-gray-800">
           {AGENTS.map(agent => (
             <button
               key={agent.id}
               onClick={() => setActiveAgent(agent)}
-              className={`w-full p-3 rounded-xl mb-2 text-left text-sm ${
-                activeAgent.id === agent.id ? 'bg-blue-600' : 'hover:bg-gray-800'
+              className={`w-full p-3 rounded-xl mb-2 ${
+                activeAgent.id === agent.id
+                  ? 'bg-blue-600'
+                  : 'hover:bg-gray-800'
               }`}
             >
               {agent.icon} {agent.name}
@@ -206,16 +209,23 @@ export default function Chat() {
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                
                 <div className={`px-4 py-3 rounded-xl max-w-3xl ${
-                  msg.role === 'user' ? 'bg-blue-600' : 'bg-gray-800'
+                  msg.role === 'user'
+                    ? 'bg-blue-600'
+                    : 'bg-gray-800'
                 }`}>
+                  
                   {msg.role === 'user' ? (
                     <p className="text-sm">{msg.content}</p>
                   ) : (
-                    <ReactMarkdown className="text-sm prose prose-invert max-w-none">
+                    <ReactMarkdown
+                      className="text-sm prose prose-invert max-w-none"
+                    >
                       {msg.content}
                     </ReactMarkdown>
                   )}
+
                 </div>
               </div>
             ))}
@@ -226,6 +236,7 @@ export default function Chat() {
           <div className="border-t border-gray-800 p-4 bg-gray-900">
             <div className="flex gap-3 items-center">
 
+              {/* MIC */}
               <button
                 onClick={recording ? stopRecording : startRecording}
                 className={`p-3 rounded-xl ${
@@ -235,6 +246,7 @@ export default function Chat() {
                 {recording ? '⏹️' : '🎤'}
               </button>
 
+              {/* INPUT */}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -244,6 +256,7 @@ export default function Chat() {
                 disabled={loading || recording}
               />
 
+              {/* SEND */}
               <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}

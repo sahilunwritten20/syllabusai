@@ -95,8 +95,8 @@ export default function Admin() {
           <div className="p-4 border-b border-gray-800">
             <h3 className="font-bold">👥 All Users ({users.length})</h3>
           </div>
-          <div className="overflow-x-auto w-full">
-  <table className="w-full min-w-150">
+          <div className="overflow-x-auto">
+            <table className="w-full">
               <thead className="bg-gray-800">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs text-gray-400">Name</th>

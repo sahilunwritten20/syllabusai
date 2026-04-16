@@ -18,13 +18,14 @@ export default function Dashboard() {
     return null;
   }
 
+  // ✅ Fetch Syllabus
   const fetchSyllabus = async () => {
     try {
       const res = await syllabusAPI.getMy();
       setSyllabus(res.data.syllabus);
     } catch (err) {
       if (err.response?.status === 404) {
-        setSyllabus(null);
+        setSyllabus(null); // no syllabus yet
       } else {
         console.log('Syllabus fetch error:', err);
       }
@@ -33,6 +34,7 @@ export default function Dashboard() {
     }
   };
 
+  // ✅ Fetch Motivation
   const fetchMotivation = async () => {
     try {
       const res = await coachAPI.getMotivation();
@@ -42,12 +44,15 @@ export default function Dashboard() {
     }
   };
 
+  // ✅ useEffect
   useEffect(() => {
     if (!user) return;
+
     fetchSyllabus();
     fetchMotivation();
   }, [user]);
 
+  // ✅ Upload Handler
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -66,6 +71,7 @@ export default function Dashboard() {
     setUploading(false);
   };
 
+  // ✅ Logout
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -73,35 +79,35 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-
-      {/* NAV */}
-      <nav className="border-b border-gray-800 px-4 py-4 flex items-center justify-between bg-gray-900 w-full overflow-x-hidden">
-        <h1 className="text-xl font-black flex-shrink-0">
+      <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between bg-gray-900">
+        <h1 className="text-2xl font-black">
           Syllabus<span className="text-blue-500">AI</span>
         </h1>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link to="/chat" className="text-gray-400 hover:text-white text-xs md:text-sm">🤖 AI</Link>
-          <Link to="/learn" className="text-gray-400 hover:text-white text-xs md:text-sm">📚 Learn</Link>
-          <Link to="/exam" className="text-gray-400 hover:text-white text-xs md:text-sm hidden sm:block">📝 Exam</Link>
-          <Link to="/career" className="text-gray-400 hover:text-white text-xs md:text-sm hidden sm:block">💼 Career</Link>
-          <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-xl text-xs font-medium">
+        <div className="flex items-center gap-5">
+          <Link to="/chat" className="text-gray-400 hover:text-white transition text-sm">🤖 AI Chat</Link>
+          <Link to="/learn" className="text-gray-400 hover:text-white transition text-sm">📚 Learn</Link>
+          <Link to="/exam" className="text-gray-400 hover:text-white transition text-sm">📝 Exam</Link>
+          <Link to="/career" className="text-gray-400 hover:text-white transition text-sm">💼 Career</Link>
+          <Link to="/settings" className="text-gray-400 hover:text-white transition text-sm">⚙️ Settings</Link>
+          <button
+            onClick={handleLogout}
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-sm font-medium transition"
+          >
             Logout
           </button>
         </div>
       </nav>
 
       <div className="p-6 max-w-7xl mx-auto">
-
-        {/* HEADER */}
         <div className="mb-6">
           <h2 className="text-3xl font-black">
             Good day, {user?.name?.split(' ')[0]}! 👋
           </h2>
-          <p className="text-gray-400 mt-1">Here's your learning overview</p>
+          <p className="text-gray-400 mt-1">
+            Here's your learning overview
+          </p>
         </div>
 
-        {/* MOTIVATION */}
         {motivation && (
           <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-800/50 rounded-2xl p-4 mb-6 flex gap-3">
             <span className="text-2xl">🔥</span>
@@ -111,16 +117,16 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* UPLOAD */}
         {!loading && !syllabus && (
           <div className="bg-gray-900 border-2 border-dashed border-gray-700 rounded-2xl p-12 text-center mb-6">
             <div className="text-5xl mb-4">📄</div>
-            <h3 className="text-xl font-bold mb-2">Upload Your Syllabus</h3>
+            <h3 className="text-xl font-bold mb-2">
+              Upload Your Syllabus
+            </h3>
             <p className="text-gray-400 mb-6">
               AI will read your syllabus and build your personalized learning path
             </p>
-
-            <label className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-bold cursor-pointer">
+            <label className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-bold cursor-pointer transition">
               {uploading ? '🤖 AI Analyzing...' : '📤 Upload PDF'}
               <input
                 type="file"
@@ -135,11 +141,9 @@ export default function Dashboard() {
 
         {syllabus && (
           <>
-            {/* ✅ FIXED STATS GRID */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-                <div className="text-gray-400 text-xs mb-1">SYLLABUS COVERED</div>
+                <div className="text-gray-400 text-xs font-medium mb-1">SYLLABUS COVERED</div>
                 <div className="text-3xl font-black text-blue-400">
                   {syllabus.overallProgress || 0}%
                 </div>
@@ -147,7 +151,7 @@ export default function Dashboard() {
               </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-                <div className="text-gray-400 text-xs mb-1">TOPICS DONE</div>
+                <div className="text-gray-400 text-xs font-medium mb-1">TOPICS DONE</div>
                 <div className="text-3xl font-black text-cyan-400">
                   {syllabus.completedTopics || 0}
                 </div>
@@ -157,7 +161,7 @@ export default function Dashboard() {
               </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-                <div className="text-gray-400 text-xs mb-1">SUBJECTS</div>
+                <div className="text-gray-400 text-xs font-medium mb-1">SUBJECTS</div>
                 <div className="text-3xl font-black text-purple-400">
                   {syllabus.subjects?.length || 0}
                 </div>
@@ -167,16 +171,14 @@ export default function Dashboard() {
               </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-                <div className="text-gray-400 text-xs mb-1">STREAK</div>
+                <div className="text-gray-400 text-xs font-medium mb-1">STREAK</div>
                 <div className="text-3xl font-black text-yellow-400">
                   {user?.streak || 0}🔥
                 </div>
                 <div className="text-gray-500 text-xs mt-1">days</div>
               </div>
-
             </div>
 
-            {/* SUBJECTS */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
               <h3 className="font-bold text-lg mb-4">
                 📋 Syllabus Coverage — {syllabus.branch} Sem {syllabus.semester}
@@ -185,10 +187,12 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {syllabus.subjects?.map((subject, i) => (
                   <div key={i} className="bg-gray-800 rounded-xl p-4">
-                    <div className="font-medium text-sm mb-2">{subject.name}</div>
+                    <div className="font-medium text-sm mb-2">
+                      {subject.name}
+                    </div>
                     <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-500 rounded-full"
+                        className="h-full bg-blue-500 rounded-full transition-all"
                         style={{ width: `${subject.progress || 0}%` }}
                       />
                     </div>
@@ -200,36 +204,34 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* QUICK ACTIONS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+  <Link to="/chat" className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">🤖</div>
+    <div className="font-bold">AI Agents</div>
+  </Link>
 
-              <Link to="/chat" className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-2">🤖</div>
-                <div className="font-bold">AI Agents</div>
-              </Link>
+  <Link to="/learn" className="bg-purple-600 hover:bg-purple-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">📚</div>
+    <div className="font-bold">Learn</div>
+  </Link>
 
-              <Link to="/learn" className="bg-purple-600 hover:bg-purple-700 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-2">📚</div>
-                <div className="font-bold">Learn</div>
-              </Link>
+  <Link to="/exam" className="bg-green-600 hover:bg-green-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">📝</div>
+    <div className="font-bold">Take Quiz</div>
+  </Link>
 
-              <Link to="/exam" className="bg-green-600 hover:bg-green-700 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-2">📝</div>
-                <div className="font-bold">Take Quiz</div>
-              </Link>
+  <Link to="/career" className="bg-yellow-600 hover:bg-yellow-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">💼</div>
+    <div className="font-bold">Career</div>
+  </Link>
 
-              <Link to="/career" className="bg-yellow-600 hover:bg-yellow-700 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-2">💼</div>
-                <div className="font-bold">Career</div>
-              </Link>
-
-              <Link to="/test" className="bg-pink-600 hover:bg-pink-700 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-2">🧪</div>
-                <div className="font-bold">Test AI</div>
-                <div className="text-pink-200 text-xs mt-1">Evaluate quality</div>
-              </Link>
-
-            </div>
+  {/* ✅ NEW TEST BUTTON */}
+  <Link to="/test" className="bg-pink-600 hover:bg-pink-700 rounded-2xl p-6 text-center transition">
+    <div className="text-3xl mb-2">🧪</div>
+    <div className="font-bold">Test AI</div>
+    <div className="text-pink-200 text-xs mt-1">Evaluate quality</div>
+  </Link>
+</div>
           </>
         )}
       </div>
