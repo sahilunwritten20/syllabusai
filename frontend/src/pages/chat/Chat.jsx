@@ -53,7 +53,7 @@ export default function Chat() {
     }
   };
 
-  // ✅ SEND MESSAGE
+  // SEND MESSAGE
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -80,14 +80,14 @@ export default function Chat() {
     setLoading(false);
   };
 
-  // ✅ CLEAR CHAT
+  // CLEAR CHAT
   const clearChat = async () => {
     await chatAPI.clearChat(activeAgent.id);
     setMessages([]);
     toast.success('Chat cleared!');
   };
 
-  // 🎤 START RECORDING
+  // START RECORDING
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -132,17 +132,13 @@ export default function Chat() {
           }
 
         } catch (err) {
-          toast.error(
-            err.response?.data?.message || 'Voice failed',
-            { id: 'voice' }
-          );
+          toast.error(err.response?.data?.message || 'Voice failed', { id: 'voice' });
         }
       };
 
       recorder.start();
       setRecording(true);
 
-      // auto stop
       setTimeout(() => {
         if (mediaRecorderRef.current?.state === 'recording') {
           stopRecording();
@@ -154,7 +150,6 @@ export default function Chat() {
     }
   };
 
-  // 🎤 STOP
   const stopRecording = () => {
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
@@ -163,30 +158,30 @@ export default function Chat() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col overflow-hidden">
 
       {/* NAVBAR */}
-      <nav className="border-b border-gray-800 px-6 py-4 flex justify-between bg-gray-900">
-        <Link to="/dashboard" className="text-2xl font-black">
+      <nav className="border-b border-gray-800 px-4 py-4 flex justify-between bg-gray-900 overflow-x-auto">
+        <Link to="/dashboard" className="text-xl font-black flex-shrink-0">
           Syllabus<span className="text-blue-500">AI</span>
         </Link>
 
-        <div className="flex gap-4 text-sm">
-          <Link to="/dashboard">📊 Dashboard</Link>
-          <Link to="/learn">📚 Learn</Link>
-          <Link to="/exam">📝 Exam</Link>
-          <Link to="/career">💼 Career</Link>
+        <div className="flex gap-3 text-sm min-w-max">
+          <Link to="/dashboard">📊</Link>
+          <Link to="/learn">📚</Link>
+          <Link to="/exam">📝</Link>
+          <Link to="/career">💼</Link>
 
-          <button onClick={clearChat} className="border px-3 py-1 rounded-lg text-red-400">
-            🗑️ Clear
+          <button onClick={clearChat} className="border px-3 py-1 rounded-lg text-red-400 whitespace-nowrap">
+            🗑️
           </button>
         </div>
       </nav>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
 
-        {/* SIDEBAR */}
-        <div className="w-56 bg-gray-900 p-4 border-r border-gray-800">
+        {/* SIDEBAR (desktop only) */}
+        <div className="hidden md:block w-56 bg-gray-900 p-4 border-r border-gray-800 overflow-y-auto">
           {AGENTS.map(agent => (
             <button
               key={agent.id}
@@ -206,26 +201,21 @@ export default function Chat() {
         <div className="flex-1 flex flex-col">
 
           {/* MESSAGES */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                
                 <div className={`px-4 py-3 rounded-xl max-w-3xl ${
                   msg.role === 'user'
                     ? 'bg-blue-600'
                     : 'bg-gray-800'
                 }`}>
-                  
                   {msg.role === 'user' ? (
                     <p className="text-sm">{msg.content}</p>
                   ) : (
-                    <ReactMarkdown
-                      className="text-sm prose prose-invert max-w-none"
-                    >
+                    <ReactMarkdown className="text-sm prose prose-invert max-w-none">
                       {msg.content}
                     </ReactMarkdown>
                   )}
-
                 </div>
               </div>
             ))}
@@ -234,9 +224,8 @@ export default function Chat() {
 
           {/* INPUT */}
           <div className="border-t border-gray-800 p-4 bg-gray-900">
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 items-center">
 
-              {/* MIC */}
               <button
                 onClick={recording ? stopRecording : startRecording}
                 className={`p-3 rounded-xl ${
@@ -246,21 +235,19 @@ export default function Chat() {
                 {recording ? '⏹️' : '🎤'}
               </button>
 
-              {/* INPUT */}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                 placeholder={recording ? 'Recording...' : `Ask ${activeAgent.name}...`}
-                className="flex-1 bg-gray-800 px-4 py-3 rounded-xl outline-none"
+                className="flex-1 bg-gray-800 px-4 py-3 rounded-xl outline-none text-sm"
                 disabled={loading || recording}
               />
 
-              {/* SEND */}
               <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
-                className="bg-blue-600 px-6 py-3 rounded-xl"
+                className="bg-blue-600 px-4 py-3 rounded-xl"
               >
                 ↑
               </button>
