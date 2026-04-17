@@ -79,27 +79,67 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-<nav className="border-b border-gray-800 px-4 py-4 flex items-center justify-between bg-gray-900 overflow-x-auto">
+<nav className="border-b border-gray-800 bg-gray-900 px-4 py-3 flex items-center justify-between">
 
-  <h1 className="text-xl font-black flex-shrink-0 mr-4">
+  {/* LOGO */}
+  <Link to="/dashboard" className="text-xl font-black flex-shrink-0">
     Syllabus<span className="text-blue-500">AI</span>
-  </h1>
+  </Link>
 
-  <div className="flex items-center gap-3 min-w-max">
-    <Link to="/chat" className="text-gray-400 hover:text-white text-sm whitespace-nowrap">🤖 AI</Link>
-    <Link to="/learn" className="text-gray-400 hover:text-white text-sm whitespace-nowrap">📚 Learn</Link>
-    <Link to="/exam" className="text-gray-400 hover:text-white text-sm whitespace-nowrap">📝 Exam</Link>
-    <Link to="/career" className="text-gray-400 hover:text-white text-sm whitespace-nowrap">💼 Career</Link>
-    <Link to="/settings" className="text-gray-400 hover:text-white text-sm whitespace-nowrap">⚙️ Settings</Link>
+  {/* NAV LINKS */}
+  <div className="flex items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar">
 
+    <Link
+      to="/dashboard"
+      className="text-gray-400 hover:text-white text-xs md:text-sm whitespace-nowrap"
+    >
+      📊 Dashboard
+    </Link>
+
+    <Link
+      to="/chat"
+      className="text-gray-400 hover:text-white text-xs md:text-sm whitespace-nowrap"
+    >
+      🤖 AI Chat
+    </Link>
+
+    <Link
+      to="/learn"
+      className="text-gray-400 hover:text-white text-xs md:text-sm whitespace-nowrap"
+    >
+      📚 Learn
+    </Link>
+
+    <Link
+      to="/exam"
+      className="text-gray-400 hover:text-white text-xs md:text-sm whitespace-nowrap"
+    >
+      📝 Exam
+    </Link>
+
+    <Link
+      to="/career"
+      className="text-gray-400 hover:text-white text-xs md:text-sm whitespace-nowrap"
+    >
+      💼 Career
+    </Link>
+
+    <Link
+      to="/settings"
+      className="text-gray-400 hover:text-white text-xs md:text-sm whitespace-nowrap"
+    >
+      ⚙️ Settings
+    </Link>
+
+    {/* LOGOUT */}
     <button
       onClick={handleLogout}
-      className="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap"
+      className="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-xl text-xs md:text-sm font-medium whitespace-nowrap"
     >
       Logout
     </button>
-  </div>
 
+  </div>
 </nav>
 
       <div className="p-6 max-w-7xl mx-auto">
