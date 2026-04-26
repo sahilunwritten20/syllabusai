@@ -3,16 +3,16 @@ const crypto = require('crypto');
 const { sendPasswordResetEmail } = require('../services/emailService');
 const {
   generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken
+  generateRefreshToken
 } = require('../utils/jwt');
 
+// ==============================
 // ✅ SIGNUP
+// ==============================
 const signup = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -21,18 +21,14 @@ const signup = async (req, res) => {
       });
     }
 
-    // Create user
     const user = await User.create({ name, email, password, role });
 
-    // Generate tokens
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Save refresh token
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
-    // Send response
     res.status(201).json({
       success: true,
       message: 'Account created successfully!',
@@ -46,19 +42,17 @@ const signup = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ✅ LOGIN
+// ==============================
+// ✅ LOGIN (FIXED)
+// ==============================
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check user exists + get password
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
@@ -67,20 +61,46 @@ const login = async (req, res) => {
       });
     }
 
-    // Check password
-    const isPasswordCorrect = await user.comparePassword(password);
-    if (!isPasswordCorrect) {
-      return res.status(401).json({
+    // 🔒 Account lock check
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockUntil - new Date()) / 60000);
+      return res.status(423).json({
         success: false,
-        message: 'Invalid email or password'
+        message: `Account locked. Try again in ${minutesLeft} minutes`
       });
     }
 
-    // Generate tokens
+    const isMatch = await user.comparePassword(password);
+
+    if (!isMatch) {
+      user.loginAttempts += 1;
+
+      if (user.loginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+        user.loginAttempts = 0;
+        await user.save();
+
+        return res.status(423).json({
+          success: false,
+          message: 'Too many failed attempts. Account locked for 30 minutes'
+        });
+      }
+
+      await user.save();
+
+      return res.status(401).json({
+        success: false,
+        message: `Invalid credentials. ${5 - user.loginAttempts} attempts left`
+      });
+    }
+
+    // ✅ Reset attempts on success
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Save refresh token
     user.refreshToken = refreshToken;
     user.lastActive = Date.now();
     await user.save({ validateBeforeSave: false });
@@ -100,48 +120,44 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// ==============================
 // ✅ GET CURRENT USER
+// ==============================
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
-    res.status(200).json({
-      success: true,
-      user
-    });
+    const user = await User.findById(req.user.userId).select('-password -refreshToken');
+    res.status(200).json({ success: true, user });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// ==============================
 // ✅ LOGOUT
+// ==============================
 const logout = async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user.userId, {
       refreshToken: null
     });
+
     res.status(200).json({
       success: true,
       message: 'Logged out successfully'
     });
+
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ✅ Forgot Password
+// ==============================
+// ✅ FORGOT PASSWORD (SECURE)
+// ==============================
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -154,78 +170,73 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpiry = resetExpiry;
+    // 🔐 Hash token before saving
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpiry = Date.now() + 15 * 60 * 1000;
+
     await user.save();
 
-    // Send email
     await sendPasswordResetEmail(user.email, resetToken, user.name);
 
     res.status(200).json({
       success: true,
-      message: 'Password reset link sent to your email! ✅'
+      message: 'Password reset link sent to your email!'
     });
 
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send reset email'
-    });
+    res.status(500).json({ success: false, message: 'Failed to send reset email' });
   }
 };
 
-// ✅ Reset Password
+// ==============================
+// ✅ RESET PASSWORD (SECURE)
+// ==============================
 const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token and new password required'
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters'
-      });
-    }
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpiry: { $gt: new Date() }
+      resetPasswordToken: hashedToken,
+      resetPasswordExpiry: { $gt: Date.now() }
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset link'
+        message: 'Invalid or expired token'
       });
     }
 
     user.password = newPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpiry = undefined;
+
+    // 🔥 invalidate sessions
+    user.refreshToken = null;
+
     await user.save();
 
     res.status(200).json({
       success: true,
-      message: 'Password reset successfully! Please login. ✅'
+      message: 'Password reset successful! Please login again.'
     });
 
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to reset password'
-    });
+    res.status(500).json({ success: false, message: 'Reset failed' });
   }
 };
-module.exports = { signup, login, getMe, logout, forgotPassword, resetPassword };
+
+module.exports = {
+  signup,
+  login,
+  getMe,
+  logout,
+  forgotPassword,
+  resetPassword
+};

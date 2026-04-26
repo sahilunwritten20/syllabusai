@@ -5,6 +5,7 @@ const { protect } = require('../middleware/auth');
 const passport = require('../config/passport');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
 const User = require('../models/User');
+const { validateLogin, validateSignup } = require('../middleware/validate');
 
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);

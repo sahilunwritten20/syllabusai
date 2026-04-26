@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 const { protect } = require('../middleware/auth');
-const checkUsage = require('../middleware/checkUsage'); // ✅ USE THIS
+const checkUsage = require('../middleware/checkUsage'); 
+const { validateMessage } = require('../middleware/validate');// ✅ USE THIS
 const {
   sendMessage,
   getHistory,
@@ -10,7 +11,7 @@ const {
 } = require('../controllers/chatController');
 
 // ✅ APPLY USAGE LIMIT HERE
-router.post('/message', protect, checkUsage('ai'), sendMessage);
+router.post('/message', protect, validateMessage, sendMessage);
 
 router.get('/history/:agentType', protect, getHistory);
 
