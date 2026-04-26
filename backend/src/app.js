@@ -51,8 +51,7 @@ app.use(
 // Prevent HTTP Parameter Pollution
 app.use(hpp());
 
-// Prevent XSS
-app.use(xss());
+
 
 // ======================================
 // ✅ BODY PARSING
@@ -60,6 +59,38 @@ app.use(xss());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
+ 
+
+const sanitizeHtml = require('sanitize-html');
+
+const clean = (value) => {
+  if (typeof value !== 'string') return value;
+  return sanitizeHtml(value, {
+    allowedTags: [],
+    allowedAttributes: {}
+  });
+};
+
+app.use((req, res, next) => {
+  const sanitizeObject = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+
+    for (let key in obj) {
+      if (typeof obj[key] === 'string') {
+        obj[key] = clean(obj[key]);
+      } else if (typeof obj[key] === 'object') {
+        sanitizeObject(obj[key]);
+      }
+    }
+  };
+
+  sanitizeObject(req.body);
+  sanitizeObject(req.params);
+
+  // ❗ DO NOT TOUCH req.query
+  next();
+});
+
 
 // ======================================
 // ✅ LOGGER
