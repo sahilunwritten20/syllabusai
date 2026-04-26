@@ -5,19 +5,18 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
-// 🔐 Optional (recommended for production)
 const hpp = require('hpp');
 const xss = require('xss-clean');
 
 const app = express();
 
 // ======================================
-// ✅ TRUST PROXY (IMPORTANT FOR RENDER)
+// ✅ TRUST PROXY
 // ======================================
 app.set('trust proxy', 1);
 
 // ======================================
-// ✅ SECURITY HEADERS (HELMET)
+// ✅ SECURITY HEADERS
 // ======================================
 app.use(
   helmet({
@@ -27,7 +26,7 @@ app.use(
       directives: {
         "default-src": ["'self'"],
         "img-src": ["'self'", "data:", "https:"],
-        "script-src": ["'self'", "'unsafe-inline'"], // ⚠️ tighten later
+        "script-src": ["'self'", "'unsafe-inline'"], // tighten later if possible
         "style-src": ["'self'", "'unsafe-inline'"],
         "connect-src": ["'self'", "https:"],
       },
@@ -40,78 +39,20 @@ app.use(
 // ======================================
 app.use(
   cors({
-    origin: "https://syllabusai-two.vercel.app", // 🔥 replace with frontend URL in production
+    origin: "https://syllabusai-two.vercel.app",
     credentials: true,
   })
 );
 
 // ======================================
-// ✅ EXTRA SECURITY (RECOMMENDED)
+// ✅ SECURITY MIDDLEWARE
 // ======================================
 
 // Prevent HTTP Parameter Pollution
 app.use(hpp());
 
-// Prevent XSS attacks
+// Prevent XSS
 app.use(xss());
-
-// Fallback manual sanitization (extra safety layer)
-app.use((req, res, next) => {
-  if (req.query) {
-    for (let key in req.query) {
-      let value = req.query[key];
-
-      if (typeof value === 'string') {
-        req.query[key] = value.replace(/[<>$]/g, '');
-      }
-
-      if (Array.isArray(value)) {
-        req.query[key] = value[0];
-      }
-    }
-  }
-  next();
-});
-
-// ======================================
-// ✅ RATE LIMITERS
-// ======================================
-
-// 🔹 General API limiter
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: {
-    success: false,
-    message: 'Too many requests. Try again after 15 minutes.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// 🔹 Auth limiter (login/signup protection)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    success: false,
-    message: 'Too many login attempts. Try again after 15 minutes.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// 🔹 Chat limiter (AI spam control)
-const chatLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 20,
-  message: {
-    success: false,
-    message: 'Slow down! Too many messages.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 // ======================================
 // ✅ BODY PARSING
@@ -126,7 +67,47 @@ app.use(cookieParser());
 app.use(morgan('dev'));
 
 // ======================================
-// ✅ APPLY RATE LIMITS
+// ✅ RATE LIMITERS
+// ======================================
+
+// General limiter
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    success: false,
+    message: 'Too many requests. Try again after 15 minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Auth limiter
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    success: false,
+    message: 'Too many login attempts. Try again after 15 minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Chat limiter
+const chatLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 20,
+  message: {
+    success: false,
+    message: 'Slow down! Too many messages.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ======================================
+// ✅ APPLY LIMITERS
 // ======================================
 app.use('/api', generalLimiter);
 
