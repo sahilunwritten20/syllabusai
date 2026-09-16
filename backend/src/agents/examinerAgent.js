@@ -4,7 +4,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const generateQuiz = async (topic, subject, branch, difficulty = 'medium') => {
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     max_tokens: 2000,
     messages: [
       {
@@ -44,7 +44,7 @@ Return ONLY this JSON:
 
 const evaluateAnswer = async (question, userAnswer, correctAnswer, topic) => {
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     max_tokens: 500,
     messages: [
       {

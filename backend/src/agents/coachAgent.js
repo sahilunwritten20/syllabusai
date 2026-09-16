@@ -6,7 +6,7 @@ const getDailyPlan = async (syllabus, completedTopics, totalTopics, streak, exam
   const progress = Math.round((completedTopics / totalTopics) * 100);
 
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     max_tokens: 1500,
     messages: [
       {
@@ -42,7 +42,7 @@ Create a motivating daily plan with:
 
 const getMotivation = async (studentName, streak, progress, weakSubjects) => {
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     max_tokens: 500,
     messages: [
       {

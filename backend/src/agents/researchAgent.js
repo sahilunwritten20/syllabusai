@@ -4,7 +4,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const researchTopic = async (topic, subject, branch, depth = 'medium') => {
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     max_tokens: 2500,
     messages: [
       {
@@ -37,7 +37,7 @@ Provide:
 
 const answerDoubt = async (doubt, context, branch, semester) => {
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     max_tokens: 1500,
     messages: [
       {
