@@ -6,81 +6,199 @@ const API = axios.create({
   timeout: 120000 // 2 minutes for large files
 });
 
-// Add token to every request
+// ==========================================
+// ADD TOKEN TO EVERY REQUEST
+// ==========================================
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
-// Handle token expiry
-// Handle token expiry
+// ==========================================
+// HANDLE TOKEN EXPIRY
+// ==========================================
 API.interceptors.response.use(
   (response) => response,
+
   (error) => {
     if (error.response?.status === 401) {
-      // Only redirect if NOT on auth pages
       const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/signup') {
+
+      // Only redirect if NOT already on auth pages
+      if (
+        currentPath !== '/login' &&
+        currentPath !== '/signup'
+      ) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+
         window.location.href = '/login';
       }
     }
+
     return Promise.reject(error);
   }
 );
 
-// Auth APIs
+// ==========================================
+// AUTH APIs
+// ==========================================
 export const authAPI = {
-  signup: (data) => API.post('/auth/signup', data),
-  login: (data) => API.post('/auth/login', data),
-  getMe: () => API.get('/auth/me'),
-  logout: () => API.post('/auth/logout'),
-  forgotPassword: (email) => API.post('/auth/forgot-password', { email }),
-  resetPassword: (token, newPassword) => API.post('/auth/reset-password', { token, newPassword })
+  signup: (data) =>
+    API.post('/auth/signup', data),
+
+  login: (data) =>
+    API.post('/auth/login', data),
+
+  getMe: () =>
+    API.get('/auth/me'),
+
+  logout: () =>
+    API.post('/auth/logout'),
+
+  forgotPassword: (email) =>
+    API.post('/auth/forgot-password', {
+      email
+    }),
+
+  resetPassword: (token, newPassword) =>
+    API.post('/auth/reset-password', {
+      token,
+      newPassword
+    })
 };
 
-// Syllabus APIs
+// ==========================================
+// SYLLABUS APIs
+// ==========================================
 export const syllabusAPI = {
-  upload: (formData) => API.post('/syllabus/upload', formData),
-  getMy: () => API.get('/syllabus/my'),
-  markComplete: (subjectId, unitId, topicId) =>
-    API.patch(`/syllabus/complete/${subjectId}/${unitId}/${topicId}`)
+  upload: (formData) =>
+    API.post('/syllabus/upload', formData),
+
+  getMy: () =>
+    API.get('/syllabus/my'),
+
+  markComplete: (
+    subjectId,
+    unitId,
+    topicId
+  ) =>
+    API.patch(
+      `/syllabus/complete/${subjectId}/${unitId}/${topicId}`
+    )
 };
 
-// Chat APIs
+// ==========================================
+// CHAT APIs
+// ==========================================
 export const chatAPI = {
-  sendMessage: (message, agentType) =>
-    API.post('/chat/message', { message, agentType }),
-  getHistory: (agentType) => API.get(`/chat/history/${agentType}`),
-  clearChat: (agentType) => API.delete(`/chat/clear/${agentType}`)
+
+  // ----------------------------------------
+  // SEND MESSAGE
+  // ----------------------------------------
+  // sessionId is optional.
+  // If sessionId exists, message is added
+  // to that chat.
+  //
+  // If sessionId is null, backend creates
+  // a new chat session.
+  // ----------------------------------------
+  sendMessage: (
+    message,
+    agentType,
+    sessionId = null
+  ) =>
+    API.post('/chat/message', {
+      message,
+      agentType,
+      sessionId
+    }),
+
+  // ----------------------------------------
+  // GET ALL CHAT SESSIONS FOR AN AGENT
+  // ----------------------------------------
+  getHistory: (agentType) =>
+    API.get(`/chat/history/${agentType}`),
+
+  // ----------------------------------------
+  // GET ONE SPECIFIC CHAT SESSION
+  // ----------------------------------------
+  getSession: (sessionId) =>
+    API.get(`/chat/session/${sessionId}`),
+
+  // ----------------------------------------
+  // CREATE NEW CHAT SESSION
+  // ----------------------------------------
+  createSession: (agentType) =>
+    API.post('/chat/session', {
+      agentType
+    }),
+
+  // ----------------------------------------
+  // DELETE ONE CHAT SESSION
+  // ----------------------------------------
+  deleteSession: (sessionId) =>
+    API.delete(`/chat/session/${sessionId}`)
 };
 
-// Teacher APIs
+// ==========================================
+// TEACHER APIs
+// ==========================================
 export const teacherAPI = {
-  teach: (topic, subject) => API.post('/teacher/teach', { topic, subject })
+  teach: (topic, subject) =>
+    API.post('/teacher/teach', {
+      topic,
+      subject
+    })
 };
 
-// Examiner APIs
+// ==========================================
+// EXAMINER APIs
+// ==========================================
 export const examinerAPI = {
-  getQuiz: (topic, subject, difficulty) =>
-    API.post('/examiner/quiz', { topic, subject, difficulty }),
-  checkAnswer: (data) => API.post('/examiner/check', data)
+  getQuiz: (
+    topic,
+    subject,
+    difficulty
+  ) =>
+    API.post('/examiner/quiz', {
+      topic,
+      subject,
+      difficulty
+    }),
+
+  checkAnswer: (data) =>
+    API.post('/examiner/check', data)
 };
 
-// Coach APIs
+// ==========================================
+// COACH APIs
+// ==========================================
 export const coachAPI = {
-  getDailyPlan: () => API.post('/coach/plan', {}),
-  getMotivation: () => API.get('/coach/motivate')
+  getDailyPlan: () =>
+    API.post('/coach/plan', {}),
+
+  getMotivation: () =>
+    API.get('/coach/motivate')
 };
 
-// Research APIs
+// ==========================================
+// RESEARCH APIs
+// ==========================================
 export const researchAPI = {
   askDoubt: (question, context) =>
-    API.post('/research/doubt', { question, context })
+    API.post('/research/doubt', {
+      question,
+      context
+    })
 };
 
+// ==========================================
+// DEFAULT API
+// ==========================================
 export default API;

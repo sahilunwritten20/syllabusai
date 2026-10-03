@@ -1,20 +1,68 @@
 const express = require('express');
+
 const router = express.Router();
 
 const { protect } = require('../middleware/auth');
-const checkUsage = require('../middleware/checkUsage'); 
-const { validateMessage } = require('../middleware/validate');// ✅ USE THIS
+const { validateMessage } = require('../middleware/validate');
+
 const {
   sendMessage,
   getHistory,
-  clearChat
+  getSession,
+  createSession,
+  deleteSession
 } = require('../controllers/chatController');
 
-// ✅ APPLY USAGE LIMIT HERE
-router.post('/message', protect, validateMessage, sendMessage);
 
-router.get('/history/:agentType', protect, getHistory);
+// ==========================================
+// SEND MESSAGE
+// ==========================================
+router.post(
+  '/message',
+  protect,
+  validateMessage,
+  sendMessage
+);
 
-router.delete('/clear/:agentType', protect, clearChat);
+
+// ==========================================
+// GET ALL SESSIONS FOR AGENT
+// ==========================================
+router.get(
+  '/history/:agentType',
+  protect,
+  getHistory
+);
+
+
+// ==========================================
+// GET ONE SESSION
+// ==========================================
+router.get(
+  '/session/:sessionId',
+  protect,
+  getSession
+);
+
+
+// ==========================================
+// CREATE NEW SESSION
+// ==========================================
+router.post(
+  '/session',
+  protect,
+  createSession
+);
+
+
+// ==========================================
+// DELETE ONE SESSION
+// ==========================================
+router.delete(
+  '/session/:sessionId',
+  protect,
+  deleteSession
+);
+
 
 module.exports = router;
