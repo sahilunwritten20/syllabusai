@@ -23,10 +23,6 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-
-// ==========================================
-// AI AGENTS
-// ==========================================
 const AGENTS = [
   {
     id: 'teacher',
@@ -72,10 +68,10 @@ const AGENTS = [
   },
 ];
 
+/* -------------------------------------------------------
+   GROUP SESSIONS BY DATE
+------------------------------------------------------- */
 
-// ==========================================
-// GROUP SESSIONS BY DATE
-// ==========================================
 function groupByDate(sessions) {
   const now = new Date();
 
@@ -103,17 +99,17 @@ function groupByDate(sessions) {
   };
 
   sessions.forEach((session) => {
-    const d = new Date(
-      session.updatedAt || session.createdAt
+    const date = new Date(
+      session.updatedAt || session.createdAt || Date.now()
     );
 
-    if (d >= today) {
+    if (date >= today) {
       groups.Today.push(session);
-    } else if (d >= yesterday) {
+    } else if (date >= yesterday) {
       groups.Yesterday.push(session);
-    } else if (d >= week) {
+    } else if (date >= week) {
       groups['Last 7 Days'].push(session);
-    } else if (d >= month) {
+    } else if (date >= month) {
       groups['Last 30 Days'].push(session);
     } else {
       groups.Older.push(session);
@@ -123,10 +119,10 @@ function groupByDate(sessions) {
   return groups;
 }
 
+/* -------------------------------------------------------
+   MAIN COMPONENT
+------------------------------------------------------- */
 
-// ==========================================
-// CHAT COMPONENT
-// ==========================================
 export default function Chat() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -141,85 +137,77 @@ export default function Chat() {
 
   const [recording, setRecording] = useState(false);
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  /* Sidebar */
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // All sessions for each agent
+  /* Sessions for every agent */
   const [sessions, setSessions] = useState({});
 
-  // Current session ID for each agent
+  /* Current session for every agent */
   const [activeSession, setActiveSession] = useState({});
 
   const mediaRecorderRef = useRef(null);
-
   const chunksRef = useRef([]);
 
   const messagesEndRef = useRef(null);
-
   const inputRef = useRef(null);
 
+  /* -------------------------------------------------------
+     AUTO SCROLL
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // AUTO SCROLL
-  // ==========================================
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: 'smooth',
     });
-  }, [messages]);
+  }, [messages, loading]);
 
+  /* -------------------------------------------------------
+     LOAD HISTORY WHEN AGENT CHANGES
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // LOAD HISTORY WHEN AGENT CHANGES
-  // ==========================================
   useEffect(() => {
     loadHistory();
-    inputRef.current?.focus();
-  }, [activeAgent]);
 
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  }, [activeAgent.id]);
 
-  // ==========================================
-  // LOAD ALL SESSIONS
-  // ==========================================
+  /* -------------------------------------------------------
+     LOAD CHAT HISTORY
+  ------------------------------------------------------- */
+
   const loadHistory = async () => {
     try {
-      const res = await chatAPI.getHistory(
-        activeAgent.id
-      );
+      const res = await chatAPI.getHistory(activeAgent.id);
 
-      const chatSessions = res.data.sessions || [];
+      const history = res.data.sessions || [];
 
       setSessions((prev) => ({
         ...prev,
-        [activeAgent.id]: chatSessions,
+        [activeAgent.id]: history,
       }));
 
-      const currentSessionId =
-        activeSession[activeAgent.id];
+      const currentSessionId = activeSession[activeAgent.id];
 
-      // If we already have an active session,
-      // reload that session.
       if (currentSessionId) {
-        const currentSession =
-          chatSessions.find(
-            (session) =>
-              session._id === currentSessionId
-          );
+        const currentSession = history.find(
+          (session) =>
+            session._id === currentSessionId ||
+            session.id === currentSessionId
+        );
 
         if (currentSession) {
-          await loadSession(currentSession);
+          await loadSession(currentSession, false);
           return;
         }
       }
 
-      // No active session:
-      // start with empty chat screen.
+      /* If no active session, show empty chat */
       setMessages([]);
-
     } catch (error) {
-      console.error(
-        'Load history error:',
-        error
-      );
+      console.error('History error:', error);
 
       setSessions((prev) => ({
         ...prev,
@@ -230,22 +218,20 @@ export default function Chat() {
     }
   };
 
+  /* -------------------------------------------------------
+     CREATE NEW CHAT
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // START NEW CHAT
-  // ==========================================
   const startNewChat = async () => {
     try {
-      // IMPORTANT:
-      // This creates a NEW session.
-      // It does NOT delete old history.
-      const res = await chatAPI.createSession(
-        activeAgent.id
-      );
+      const res = await chatAPI.createSession(activeAgent.id);
 
       const newSession = res.data.session;
 
-      // Add new session to top of history
+      if (!newSession) {
+        throw new Error('Session was not returned by server');
+      }
+
       setSessions((prev) => ({
         ...prev,
         [activeAgent.id]: [
@@ -254,99 +240,94 @@ export default function Chat() {
         ],
       }));
 
-      // Set it as current session
       setActiveSession((prev) => ({
         ...prev,
         [activeAgent.id]: newSession._id,
       }));
 
-      // Empty chat screen
       setMessages([]);
 
       setInput('');
 
-      toast.success(
-        `New ${activeAgent.name} chat started!`
-      );
+      /* Close mobile sidebar */
+      setSidebarOpen(false);
 
-      inputRef.current?.focus();
+      toast.success(`${activeAgent.name} new chat started!`);
 
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     } catch (error) {
-      console.error(
-        'Create chat error:',
-        error
-      );
+      console.error('Create session error:', error);
 
       toast.error(
         error.response?.data?.message ||
-        'Failed to start new chat'
+          'Could not create new chat'
       );
     }
   };
 
+  /* -------------------------------------------------------
+     LOAD PARTICULAR SESSION
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // LOAD ONE SESSION
-  // ==========================================
-  const loadSession = async (session) => {
+  const loadSession = async (session, closeSidebar = true) => {
     try {
-      const res = await chatAPI.getSession(
-        session._id
-      );
+      const sessionId = session._id || session.id;
 
-      const fullSession = res.data.session;
+      const res = await chatAPI.getSession(sessionId);
 
-      setMessages(
-        fullSession.messages || []
-      );
+      const loadedSession = res.data.session;
+
+      setMessages(loadedSession?.messages || []);
 
       setActiveSession((prev) => ({
         ...prev,
-        [activeAgent.id]: fullSession._id,
+        [activeAgent.id]: sessionId,
       }));
 
-      setInput('');
+      if (closeSidebar) {
+        setSidebarOpen(false);
+      }
 
-      inputRef.current?.focus();
-
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     } catch (error) {
-      console.error(
-        'Load session error:',
-        error
-      );
+      console.error('Load session error:', error);
 
       toast.error(
-        'Failed to open this chat'
+        error.response?.data?.message ||
+          'Could not load chat'
       );
     }
   };
 
+  /* -------------------------------------------------------
+     SWITCH AGENT
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // SWITCH AGENT
-  // ==========================================
   const switchAgent = (agent) => {
     setActiveAgent(agent);
 
-    // Messages will be loaded by useEffect
+    /* Close mobile sidebar */
+    setSidebarOpen(false);
   };
 
+  /* -------------------------------------------------------
+     SEND MESSAGE
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // SEND MESSAGE
-  // ==========================================
   const sendMessage = async () => {
-    if (!input.trim() || loading) {
+    const text = input.trim();
+
+    if (!text || loading) {
       return;
     }
 
-    const text = input.trim();
+    setInput('');
 
-    const currentSessionId =
-      activeSession[activeAgent.id] || null;
-
-    // Optimistic user message
-    const userMsg = {
+    const optimisticUserMessage = {
       role: 'user',
       content: text,
       createdAt: new Date(),
@@ -354,22 +335,49 @@ export default function Chat() {
 
     setMessages((prev) => [
       ...prev,
-      userMsg,
+      optimisticUserMessage,
     ]);
-
-    setInput('');
 
     setLoading(true);
 
     try {
+      let currentSessionId =
+        activeSession[activeAgent.id];
+
+      /*
+        If there is no session yet, create one automatically.
+      */
+
+      if (!currentSessionId) {
+        const sessionRes = await chatAPI.createSession(
+          activeAgent.id
+        );
+
+        const newSession = sessionRes.data.session;
+
+        currentSessionId = newSession._id;
+
+        setActiveSession((prev) => ({
+          ...prev,
+          [activeAgent.id]: currentSessionId,
+        }));
+
+        setSessions((prev) => ({
+          ...prev,
+          [activeAgent.id]: [
+            newSession,
+            ...(prev[activeAgent.id] || []),
+          ],
+        }));
+      }
+
       const res = await chatAPI.sendMessage(
         text,
         activeAgent.id,
         currentSessionId
       );
 
-      // AI response
-      const aiMsg = {
+      const aiMessage = {
         role: 'assistant',
         content: res.data.message,
         createdAt: new Date(),
@@ -377,127 +385,107 @@ export default function Chat() {
 
       setMessages((prev) => [
         ...prev,
-        aiMsg,
+        aiMessage,
       ]);
 
-      // Backend creates session if necessary
-      if (
-        !currentSessionId &&
-        res.data.sessionId
-      ) {
-        setActiveSession((prev) => ({
+      /*
+        Refresh history so the session title and
+        updated time are updated.
+      */
+
+      try {
+        const historyRes =
+          await chatAPI.getHistory(activeAgent.id);
+
+        const updatedSessions =
+          historyRes.data.sessions || [];
+
+        setSessions((prev) => ({
           ...prev,
-          [activeAgent.id]:
-            res.data.sessionId,
+          [activeAgent.id]: updatedSessions,
         }));
-      }
-
-      // Refresh history
-      const historyRes =
-        await chatAPI.getHistory(
-          activeAgent.id
+      } catch (historyError) {
+        console.error(
+          'History refresh error:',
+          historyError
         );
-
-      const updatedSessions =
-        historyRes.data.sessions || [];
-
-      setSessions((prev) => ({
-        ...prev,
-        [activeAgent.id]:
-          updatedSessions,
-      }));
-
+      }
     } catch (error) {
-      console.error(
-        'Send message error:',
-        error
+      console.error('Send message error:', error);
+
+      /*
+        Remove optimistic message if request failed.
+      */
+
+      setMessages((prev) =>
+        prev.filter(
+          (message) =>
+            message !== optimisticUserMessage
+        )
       );
 
       toast.error(
         error.response?.data?.message ||
-        'Failed to send message'
+          'Failed to send message'
       );
-
-      // Remove optimistic user message
-      setMessages((prev) => {
-        const copy = [...prev];
-
-        const lastIndex =
-          copy.length - 1;
-
-        if (
-          lastIndex >= 0 &&
-          copy[lastIndex].role === 'user' &&
-          copy[lastIndex].content === text
-        ) {
-          copy.pop();
-        }
-
-        return copy;
-      });
-
     } finally {
       setLoading(false);
+
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   };
 
+  /* -------------------------------------------------------
+     DELETE CURRENT SESSION
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // DELETE CURRENT CHAT
-  // ==========================================
   const clearChat = async () => {
     const sessionId =
       activeSession[activeAgent.id];
 
-    // Nothing to delete
     if (!sessionId) {
       setMessages([]);
       return;
     }
 
     try {
-      await chatAPI.deleteSession(
-        sessionId
-      );
+      await chatAPI.deleteSession(sessionId);
 
-      // Remove only this session
+      setMessages([]);
+
       setSessions((prev) => ({
         ...prev,
         [activeAgent.id]: (
           prev[activeAgent.id] || []
         ).filter(
           (session) =>
-            session._id !== sessionId
+            session._id !== sessionId &&
+            session.id !== sessionId
         ),
       }));
 
-      // Clear current session
       setActiveSession((prev) => ({
         ...prev,
         [activeAgent.id]: null,
       }));
 
-      setMessages([]);
-
-      toast.success('Chat deleted!');
-
+      toast.success('Chat deleted');
     } catch (error) {
-      console.error(
-        'Delete chat error:',
-        error
-      );
+      console.error('Delete session error:', error);
 
       toast.error(
         error.response?.data?.message ||
-        'Failed to delete chat'
+          'Could not delete chat'
       );
     }
   };
 
+  /* -------------------------------------------------------
+     VOICE RECORDING
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // START RECORDING
-  // ==========================================
   const startRecording = async () => {
     try {
       const stream =
@@ -505,26 +493,22 @@ export default function Chat() {
           audio: true,
         });
 
-      const recorder =
-        new MediaRecorder(stream);
+      const recorder = new MediaRecorder(stream);
 
-      mediaRecorderRef.current =
-        recorder;
+      mediaRecorderRef.current = recorder;
 
       chunksRef.current = [];
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
         }
       };
 
       recorder.onstop = async () => {
         stream
           .getTracks()
-          .forEach((track) =>
-            track.stop()
-          );
+          .forEach((track) => track.stop());
 
         const blob = new Blob(
           chunksRef.current,
@@ -534,7 +518,7 @@ export default function Chat() {
         );
 
         if (blob.size < 100) {
-          toast.error('Too short!');
+          toast.error('Recording too short');
           return;
         }
 
@@ -546,24 +530,18 @@ export default function Chat() {
           'recording.webm'
         );
 
-        toast.loading(
-          'Converting...',
-          {
-            id: 'voice',
-          }
-        );
+        toast.loading('Converting...', {
+          id: 'voice',
+        });
 
         try {
-          const res =
-            await API.post(
-              '/voice/speech-to-text',
-              formData
-            );
+          const res = await API.post(
+            '/voice/speech-to-text',
+            formData
+          );
 
           if (res.data.success) {
-            setInput(
-              res.data.text
-            );
+            setInput(res.data.text);
 
             toast.success(
               '🎤 Voice captured!',
@@ -571,13 +549,19 @@ export default function Chat() {
                 id: 'voice',
               }
             );
-          }
 
+            setTimeout(() => {
+              inputRef.current?.focus();
+            }, 100);
+          }
         } catch (error) {
-          console.error(error);
+          console.error(
+            'Voice conversion error:',
+            error
+          );
 
           toast.error(
-            'Voice failed',
+            'Voice conversion failed',
             {
               id: 'voice',
             }
@@ -597,20 +581,18 @@ export default function Chat() {
           stopRecording();
         }
       }, 15000);
-
     } catch (error) {
-      console.error(error);
+      console.error(
+        'Microphone error:',
+        error
+      );
 
       toast.error(
-        'Mic permission denied'
+        'Microphone permission denied'
       );
     }
   };
 
-
-  // ==========================================
-  // STOP RECORDING
-  // ==========================================
   const stopRecording = () => {
     if (
       mediaRecorderRef.current?.state ===
@@ -622,792 +604,459 @@ export default function Chat() {
     setRecording(false);
   };
 
+  /* -------------------------------------------------------
+     LOGOUT
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // LOGOUT
-  // ==========================================
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
+  /* -------------------------------------------------------
+     CURRENT SESSIONS
+  ------------------------------------------------------- */
 
-  // ==========================================
-  // CURRENT AGENT SESSIONS
-  // ==========================================
   const agentSessions =
     sessions[activeAgent.id] || [];
 
   const groupedSessions =
     groupByDate(agentSessions);
 
+  const currentSessionId =
+    activeSession[activeAgent.id];
 
-  // ==========================================
-  // UI
-  // ==========================================
+  /* -------------------------------------------------------
+     STARTER PROMPTS
+  ------------------------------------------------------- */
+
+  const starterPrompts =
+    activeAgent.id === 'teacher'
+      ? [
+          'Explain recursion in simple words',
+          'What is DBMS and its types?',
+          'Explain OOP concepts with examples',
+          'What is REST API?',
+        ]
+      : activeAgent.id === 'examiner'
+      ? [
+          'Generate 5 MCQs on arrays',
+          'Quiz me on linked lists',
+          'Create a mock exam on SQL',
+          'Test my OS knowledge',
+        ]
+      : activeAgent.id === 'debugger'
+      ? [
+          'Debug my Java code',
+          'Review my Python function',
+          'Fix my SQL query',
+          'Explain this error message',
+        ]
+      : activeAgent.id === 'coach'
+      ? [
+          'Create my study plan for exams',
+          'How to be more productive?',
+          'Help me stay consistent',
+          'Motivate me to study',
+        ]
+      : activeAgent.id === 'research'
+      ? [
+          'Research blockchain in depth',
+          'Explain machine learning',
+          'Deep dive into cloud computing',
+          'Research cybersecurity basics',
+        ]
+      : [
+          'What careers suit my IT degree?',
+          'How to prepare for placements?',
+          'Best skills for software jobs',
+          'How to crack technical interviews?',
+        ];
+
+  /* -------------------------------------------------------
+     RENDER
+  ------------------------------------------------------- */
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100vh',
-        background: '#0A0F1E',
-        color: '#fff',
-        fontFamily:
-          "'DM Sans', sans-serif",
-        overflow: 'hidden',
-        maxWidth: '100vw',
-      }}
-    >
+    <div className="chat-app">
 
-      {/* ======================================
-          LEFT SIDEBAR
-      ====================================== */}
+      {/* ================================================
+          MOBILE SIDEBAR BACKDROP
+      ================================================= */}
 
-      <div
-        style={{
-          width: sidebarOpen ? 260 : 0,
-          minWidth: sidebarOpen ? 260 : 0,
-          transition: 'all 0.3s ease',
-          overflow: 'hidden',
-          background: '#060C18',
-          borderRight:
-            '1px solid rgba(255,255,255,0.06)',
-          display: 'flex',
-          flexDirection: 'column',
-          flexShrink: 0,
-        }}
-      >
+      {sidebarOpen && (
         <div
-          style={{
-            width: 260,
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflowY: 'hidden',
-          }}
-        >
+          className="mobile-sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-          {/* Logo + Toggle */}
-          <div
-            style={{
-              padding:
-                '16px 14px 12px',
-              borderBottom:
-                '1px solid rgba(255,255,255,0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent:
-                'space-between',
-              flexShrink: 0,
-            }}
-          >
+      {/* ================================================
+          SIDEBAR
+      ================================================= */}
+
+      <aside
+        className={`chat-sidebar ${
+          sidebarOpen ? 'sidebar-open' : 'sidebar-closed'
+        }`}
+      >
+        <div className="sidebar-inner">
+
+          {/* Logo */}
+          <div className="sidebar-header">
+
             <Link
               to="/dashboard"
-              style={{
-                textDecoration: 'none',
-                fontSize: 18,
-                fontWeight: 800,
-                color: '#fff',
-                letterSpacing:
-                  '-0.03em',
-              }}
-            >
-              Syllabus
-              <span
-                style={{
-                  color: '#3B82F6',
-                }}
-              >
-                AI
-              </span>
-            </Link>
-
-            <button
+              className="sidebar-logo"
               onClick={() =>
                 setSidebarOpen(false)
               }
-              style={{
-                background: 'none',
-                border: 'none',
-                color:
-                  'rgba(255,255,255,0.4)',
-                cursor: 'pointer',
-                fontSize: 18,
-                padding: 4,
-                display: 'flex',
-                alignItems:
-                  'center',
-              }}
             >
-              ☰
+              Syllabus
+              <span>AI</span>
+            </Link>
+
+            <button
+              className="sidebar-close"
+              onClick={() =>
+                setSidebarOpen(false)
+              }
+              aria-label="Close menu"
+            >
+              ✕
             </button>
           </div>
 
+          {/* Navigation */}
+          <div className="sidebar-navigation">
+
+            <Link
+              to="/dashboard"
+              onClick={() =>
+                setSidebarOpen(false)
+              }
+            >
+              📊 Dashboard
+            </Link>
+
+            <Link
+              to="/learn"
+              onClick={() =>
+                setSidebarOpen(false)
+              }
+            >
+              📚 Learn
+            </Link>
+
+            <Link
+              to="/exam"
+              onClick={() =>
+                setSidebarOpen(false)
+              }
+            >
+              📝 Exam
+            </Link>
+
+            <Link
+              to="/career"
+              onClick={() =>
+                setSidebarOpen(false)
+              }
+            >
+              💼 Career
+            </Link>
+
+          </div>
 
           {/* New Chat */}
-          <div
-            style={{
-              padding: '10px 12px',
-              flexShrink: 0,
-            }}
-          >
-            <button
-              onClick={startNewChat}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background:
-                  'rgba(59,130,246,0.12)',
-                border:
-                  '1px solid rgba(59,130,246,0.25)',
-                borderRadius: 10,
-                padding:
-                  '10px 14px',
-                color: '#60A5FA',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily:
-                  "'DM Sans', sans-serif",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 16,
-                }}
-              >
-                ✏️
-              </span>
+          <div className="new-chat-wrapper">
 
+            <button
+              className="new-chat-button"
+              onClick={startNewChat}
+            >
+              <span>✏️</span>
               New Chat
             </button>
+
           </div>
 
+          {/* Agents */}
+          <div className="agents-section">
 
-          {/* AI Agents */}
-          <div
-            style={{
-              padding:
-                '4px 12px 8px',
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10,
-                color:
-                  'rgba(255,255,255,0.3)',
-                letterSpacing:
-                  '0.1em',
-                marginBottom: 6,
-                paddingLeft: 2,
-              }}
-            >
+            <div className="section-label">
               AI AGENTS
             </div>
 
             {AGENTS.map((agent) => (
               <button
                 key={agent.id}
+                className={`agent-button ${
+                  activeAgent.id === agent.id
+                    ? 'agent-active'
+                    : ''
+                }`}
                 onClick={() =>
                   switchAgent(agent)
                 }
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems:
-                    'center',
-                  gap: 10,
-                  background:
-                    activeAgent.id ===
-                    agent.id
-                      ? 'rgba(255,255,255,0.08)'
-                      : 'transparent',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding:
-                    '8px 10px',
-                  cursor: 'pointer',
-                  color:
-                    activeAgent.id ===
-                    agent.id
-                      ? '#fff'
-                      : 'rgba(255,255,255,0.5)',
-                  fontSize: 13,
-                  fontFamily:
-                    "'DM Sans', sans-serif",
-                  marginBottom: 2,
-                  textAlign: 'left',
-                }}
               >
+
                 <span
+                  className="agent-icon"
                   style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: 8,
-                    flexShrink: 0,
                     background:
-                      activeAgent.id ===
-                      agent.id
+                      activeAgent.id === agent.id
                         ? `${agent.color}25`
                         : 'rgba(255,255,255,0.05)',
-                    border:
-                      activeAgent.id ===
-                      agent.id
-                        ? `1px solid ${agent.color}40`
-                        : '1px solid rgba(255,255,255,0.06)',
-                    display: 'flex',
-                    alignItems:
-                      'center',
-                    justifyContent:
-                      'center',
-                    fontSize: 15,
+                    borderColor:
+                      activeAgent.id === agent.id
+                        ? `${agent.color}50`
+                        : 'rgba(255,255,255,0.06)',
                   }}
                 >
                   {agent.icon}
                 </span>
 
-                <div
-                  style={{
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 12.5,
-                    }}
-                  >
+                <span className="agent-information">
+
+                  <span className="agent-name">
                     {agent.name}
-                  </div>
+                  </span>
 
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color:
-                        'rgba(255,255,255,0.3)',
-                    }}
-                  >
+                  <span className="agent-description">
                     {agent.desc}
-                  </div>
-                </div>
+                  </span>
 
-                {activeAgent.id ===
-                  agent.id && (
-                  <div
+                </span>
+
+                {activeAgent.id === agent.id && (
+                  <span
+                    className="agent-dot"
                     style={{
-                      marginLeft: 'auto',
-                      width: 6,
-                      height: 6,
-                      borderRadius:
-                        '50%',
                       background:
                         agent.color,
-                      flexShrink: 0,
                     }}
                   />
                 )}
+
               </button>
             ))}
+
           </div>
 
+          {/* History */}
+          <div className="history-section no-scrollbar">
 
-          {/* ==================================
-              CHAT HISTORY
-          ================================== */}
-
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '4px 12px',
-              borderTop:
-                '1px solid rgba(255,255,255,0.06)',
-            }}
-            className="no-scrollbar"
-          >
-            <div
-              style={{
-                fontSize: 10,
-                color:
-                  'rgba(255,255,255,0.3)',
-                letterSpacing:
-                  '0.1em',
-                margin:
-                  '10px 0 6px 2px',
-              }}
-            >
+            <div className="section-label history-title">
               HISTORY
             </div>
 
-            {agentSessions.length ===
-            0 ? (
-              <div
-                style={{
-                  textAlign:
-                    'center',
-                  padding:
-                    '20px 8px',
-                  color:
-                    'rgba(255,255,255,0.2)',
-                  fontSize: 12,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    marginBottom: 8,
-                  }}
-                >
+            {agentSessions.length === 0 ? (
+              <div className="empty-history">
+
+                <div className="empty-history-icon">
                   💬
                 </div>
 
                 No chat history yet.
                 <br />
                 Start a conversation!
+
               </div>
             ) : (
               Object.entries(
                 groupedSessions
               ).map(
-                ([
-                  group,
-                  groupSessions,
-                ]) => {
-                  if (
-                    !groupSessions.length
-                  ) {
+                ([group, groupSessions]) => {
+
+                  if (!groupSessions.length) {
                     return null;
                   }
 
                   return (
                     <div
                       key={group}
+                      className="history-group"
                     >
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color:
-                            'rgba(255,255,255,0.25)',
-                          letterSpacing:
-                            '0.05em',
-                          padding:
-                            '6px 2px 4px',
-                          fontWeight: 600,
-                        }}
-                      >
+
+                      <div className="history-group-title">
                         {group}
                       </div>
 
                       {groupSessions.map(
-                        (session) => (
-                          <button
-                            key={
-                              session._id
-                            }
-                            onClick={() =>
-                              loadSession(
-                                session
-                              )
-                            }
-                            style={{
-                              width:
-                                '100%',
-                              textAlign:
-                                'left',
-                              background:
-                                activeSession[
-                                  activeAgent.id
-                                ] ===
-                                session._id
-                                  ? 'rgba(255,255,255,0.07)'
-                                  : 'transparent',
-                              border:
-                                'none',
-                              borderRadius: 8,
-                              padding:
-                                '7px 10px',
-                              cursor:
-                                'pointer',
-                              color:
-                                'rgba(255,255,255,0.6)',
-                              fontSize: 12,
-                              fontFamily:
-                                "'DM Sans', sans-serif",
-                              marginBottom: 2,
-                              display:
-                                'block',
-                              overflow:
-                                'hidden',
-                              whiteSpace:
-                                'nowrap',
-                              textOverflow:
-                                'ellipsis',
-                            }}
-                          >
-                            {activeAgent.icon}{' '}
-                            {session.title ||
-                              'New Chat'}
-                          </button>
-                        )
+                        (session) => {
+
+                          const sessionId =
+                            session._id ||
+                            session.id;
+
+                          return (
+                            <button
+                              key={sessionId}
+                              className={`history-item ${
+                                currentSessionId ===
+                                sessionId
+                                  ? 'history-active'
+                                  : ''
+                              }`}
+                              onClick={() =>
+                                loadSession(
+                                  session
+                                )
+                              }
+                            >
+                              {activeAgent.icon}{' '}
+                              {session.title ||
+                                'New Chat'}
+                            </button>
+                          );
+                        }
                       )}
+
                     </div>
                   );
                 }
               )
             )}
+
           </div>
 
+          {/* User */}
+          <div className="sidebar-user">
 
-          {/* User + Logout */}
-          <div
-            style={{
-              padding:
-                '10px 12px',
-              borderTop:
-                '1px solid rgba(255,255,255,0.06)',
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems:
-                  'center',
-                gap: 10,
-                marginBottom: 6,
-              }}
-            >
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius:
-                    '50%',
-                  background:
-                    'linear-gradient(135deg,#3B82F6,#8B5CF6)',
-                  display: 'flex',
-                  alignItems:
-                    'center',
-                  justifyContent:
-                    'center',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}
-              >
+            <div className="user-information">
+
+              <div className="user-avatar">
                 {user?.name
                   ?.charAt(0)
-                  ?.toUpperCase() ||
-                  'S'}
+                  ?.toUpperCase() || 'S'}
               </div>
 
-              <div
-                style={{
-                  overflow:
-                    'hidden',
-                  flex: 1,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: '#fff',
-                    whiteSpace:
-                      'nowrap',
-                    overflow:
-                      'hidden',
-                    textOverflow:
-                      'ellipsis',
-                  }}
-                >
-                  {user?.name ||
-                    'Student'}
+              <div className="user-details">
+
+                <div className="user-name">
+                  {user?.name || 'Student'}
                 </div>
 
-                <div
-                  style={{
-                    fontSize: 10,
-                    color:
-                      'rgba(255,255,255,0.35)',
-                  }}
-                >
-                  {user?.plan ||
-                    'Free Plan'}
+                <div className="user-plan">
+                  {user?.plan || 'Free Plan'}
                 </div>
+
               </div>
+
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                gap: 6,
-              }}
-            >
+            <div className="user-actions">
+
               <Link
                 to="/settings"
-                style={{
-                  flex: 1,
-                  textAlign:
-                    'center',
-                  padding:
-                    '6px 0',
-                  background:
-                    'rgba(255,255,255,0.04)',
-                  border:
-                    '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 8,
-                  color:
-                    'rgba(255,255,255,0.5)',
-                  fontSize: 11,
-                  textDecoration:
-                    'none',
-                }}
+                onClick={() =>
+                  setSidebarOpen(false)
+                }
               >
                 ⚙️ Settings
               </Link>
 
               <button
-                onClick={
-                  handleLogout
-                }
-                style={{
-                  flex: 1,
-                  padding:
-                    '6px 0',
-                  background:
-                    'rgba(239,68,68,0.1)',
-                  border:
-                    '1px solid rgba(239,68,68,0.2)',
-                  borderRadius: 8,
-                  color:
-                    '#F87171',
-                  fontSize: 11,
-                  cursor:
-                    'pointer',
-                  fontFamily:
-                    "'DM Sans', sans-serif",
-                }}
+                onClick={handleLogout}
               >
                 🚪 Logout
               </button>
+
             </div>
+
           </div>
+
         </div>
-      </div>
+      </aside>
 
+      {/* ================================================
+          MAIN
+      ================================================= */}
 
-      {/* ======================================
-          MAIN CHAT
-      ====================================== */}
+      <main className="chat-main">
 
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection:
-            'column',
-          overflow: 'hidden',
-          minWidth: 0,
-        }}
-      >
-
-        {/* ====================================
+        {/* ==============================================
             TOP HEADER
-        ==================================== */}
+        =============================================== */}
 
-        <div
-          style={{
-            minHeight: 54,
-            display: 'flex',
-            alignItems:
-              'center',
-            justifyContent:
-              'space-between',
-            padding:
-              '0 16px',
-            borderBottom:
-              '1px solid rgba(255,255,255,0.06)',
-            background:
-              'rgba(6,12,24,0.8)',
-            backdropFilter:
-              'blur(10px)',
-            flexShrink: 0,
-            gap: 16,
-          }}
-        >
+        <header className="chat-topbar">
 
-          {/* LEFT HEADER */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems:
-                'center',
-              gap: 18,
-              minWidth: 0,
-            }}
-          >
+          {/* Left */}
+          <div className="topbar-left">
 
-            {!sidebarOpen && (
-              <button
-                onClick={() =>
-                  setSidebarOpen(true)
-                }
-                style={{
-                  background:
-                    'none',
-                  border: 'none',
-                  color:
-                    'rgba(255,255,255,0.5)',
-                  cursor:
-                    'pointer',
-                  fontSize: 18,
-                }}
-              >
-                ☰
-              </button>
-            )}
-
-            {/* Navigation */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems:
-                  'center',
-                gap: 18,
-              }}
+            <button
+              className="menu-button"
+              onClick={() =>
+                setSidebarOpen(true)
+              }
+              aria-label="Open menu"
             >
-              <Link
-                to="/dashboard"
-                style={{
-                  color:
-                    'rgba(255,255,255,0.7)',
-                  textDecoration:
-                    'none',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
+              ☰
+            </button>
+
+            {/* Desktop navigation */}
+            <nav className="desktop-navigation">
+
+              <Link to="/dashboard">
                 Dashboard
               </Link>
 
-              <Link
-                to="/learn"
-                style={{
-                  color:
-                    'rgba(255,255,255,0.7)',
-                  textDecoration:
-                    'none',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
+              <Link to="/learn">
                 Learn
               </Link>
 
-              <Link
-                to="/exam"
-                style={{
-                  color:
-                    'rgba(255,255,255,0.7)',
-                  textDecoration:
-                    'none',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
+              <Link to="/exam">
                 Exam
               </Link>
 
-              <Link
-                to="/career"
-                style={{
-                  color:
-                    'rgba(255,255,255,0.7)',
-                  textDecoration:
-                    'none',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
+              <Link to="/career">
                 Career
               </Link>
-            </div>
 
+            </nav>
 
-            {/* Agent */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems:
-                  'center',
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
-                  background:
-                    `${activeAgent.color}20`,
-                  border:
-                    `1px solid ${activeAgent.color}40`,
-                  display: 'flex',
-                  alignItems:
-                    'center',
-                  justifyContent:
-                    'center',
-                  fontSize: 16,
-                }}
-              >
-                {activeAgent.icon}
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}
-                >
-                  {activeAgent.name} Agent
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 10,
-                    color:
-                      'rgba(255,255,255,0.35)',
-                  }}
-                >
-                  {activeAgent.desc}
-                </div>
-              </div>
-            </div>
           </div>
 
+          {/* Center/Agent */}
+          <div className="active-agent-header">
 
-          {/* RIGHT HEADER */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems:
-                'center',
-            }}
-          >
-
-            {/* Agent buttons */}
             <div
+              className="active-agent-icon"
               style={{
-                display: 'flex',
-                gap: 4,
+                background:
+                  `${activeAgent.color}20`,
+                borderColor:
+                  `${activeAgent.color}40`,
               }}
             >
+              {activeAgent.icon}
+            </div>
+
+            <div className="active-agent-text">
+
+              <div className="active-agent-name">
+                {activeAgent.name} Agent
+              </div>
+
+              <div className="active-agent-desc">
+                {activeAgent.desc}
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Right */}
+          <div className="topbar-actions">
+
+            {/* Desktop agent buttons */}
+            <div className="desktop-agent-switcher">
+
               {AGENTS.map((agent) => (
                 <button
                   key={agent.id}
@@ -1415,22 +1064,14 @@ export default function Chat() {
                     switchAgent(agent)
                   }
                   title={agent.name}
+                  className="desktop-agent-button"
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    border: 'none',
-                    cursor:
-                      'pointer',
                     background:
-                      activeAgent.id ===
-                      agent.id
+                      activeAgent.id === agent.id
                         ? `${agent.color}25`
                         : 'rgba(255,255,255,0.04)',
-                    fontSize: 15,
                     outline:
-                      activeAgent.id ===
-                      agent.id
+                      activeAgent.id === agent.id
                         ? `1px solid ${agent.color}50`
                         : 'none',
                   }}
@@ -1438,95 +1079,47 @@ export default function Chat() {
                   {agent.icon}
                 </button>
               ))}
+
             </div>
 
-            <div
-              style={{
-                width: 1,
-                height: 24,
-                background:
-                  'rgba(255,255,255,0.08)',
-              }}
-            />
-
-            {/* Delete CURRENT session */}
             <button
               onClick={clearChat}
+              className="clear-button"
               title="Delete current chat"
-              style={{
-                background:
-                  'rgba(239,68,68,0.1)',
-                border:
-                  '1px solid rgba(239,68,68,0.18)',
-                borderRadius: 8,
-                padding:
-                  '5px 12px',
-                color: '#F87171',
-                cursor:
-                  'pointer',
-                fontSize: 12,
-                fontFamily:
-                  "'DM Sans', sans-serif",
-              }}
             >
-              🗑️ Clear
+              🗑️
+              <span>Clear</span>
             </button>
+
           </div>
-        </div>
 
+        </header>
 
-        {/* ====================================
-            MESSAGES
-        ==================================== */}
+        {/* ==============================================
+            MESSAGES AREA
+        =============================================== */}
 
-        <div
-          style={{
-            flex: 1,
-            overflowY:
-              'auto',
-            padding:
-              '24px 0',
-          }}
-          className="no-scrollbar"
-        >
-          <div
-            style={{
-              maxWidth: 760,
-              margin:
-                '0 auto',
-              padding:
-                '0 20px',
-            }}
-          >
+        <section className="messages-area no-scrollbar">
+
+          <div className="messages-container">
 
             {/* EMPTY STATE */}
-            {messages.length ===
-              0 && (
-              <div
-                style={{
-                  textAlign:
-                    'center',
-                  paddingTop: 60,
-                }}
-              >
+            {messages.length === 0 && (
+              <div className="empty-chat">
+
                 <div
+                  className="empty-chat-icon"
                   style={{
-                    fontSize: 56,
-                    marginBottom: 16,
+                    background:
+                      `${activeAgent.color}12`,
+                    borderColor:
+                      `${activeAgent.color}25`,
                   }}
                 >
                   {activeAgent.icon}
                 </div>
 
-                <h2
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    marginBottom: 8,
-                    letterSpacing:
-                      '-0.03em',
-                  }}
-                >
+                <h1>
                   Chat with{' '}
                   <span
                     style={{
@@ -1536,18 +1129,9 @@ export default function Chat() {
                   >
                     {activeAgent.name}
                   </span>
-                </h2>
+                </h1>
 
-                <p
-                  style={{
-                    color:
-                      'rgba(255,255,255,0.4)',
-                    fontSize: 14,
-                    margin:
-                      '0 auto 32px',
-                    maxWidth: 360,
-                  }}
-                >
+                <p>
                   {activeAgent.id ===
                     'teacher' &&
                     'Ask me to explain any topic from your syllabus clearly and simply.'}
@@ -1573,192 +1157,72 @@ export default function Chat() {
                     'Ask me about career paths, skills, and opportunities in your field.'}
                 </p>
 
+                {/* Starter prompts */}
+                <div className="starter-prompts">
 
-                {/* STARTER PROMPTS */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                      '1fr 1fr',
-                    gap: 10,
-                    maxWidth: 520,
-                    margin:
-                      '0 auto',
-                  }}
-                >
-                  {(activeAgent.id ===
-                  'teacher'
-                    ? [
-                        'Explain recursion in simple words',
-                        'What is DBMS and its types?',
-                        'Explain OOP concepts with examples',
-                        'What is REST API?',
-                      ]
-                    : activeAgent.id ===
-                      'examiner'
-                    ? [
-                        'Generate 5 MCQs on arrays',
-                        'Quiz me on linked lists',
-                        'Create a mock exam on SQL',
-                        'Test my OS knowledge',
-                      ]
-                    : activeAgent.id ===
-                      'debugger'
-                    ? [
-                        'Debug my Java code',
-                        'Review my Python function',
-                        'Fix my SQL query',
-                        'Explain this error message',
-                      ]
-                    : activeAgent.id ===
-                      'coach'
-                    ? [
-                        'Create my study plan for exams',
-                        'How to be more productive?',
-                        'Help me stay consistent',
-                        'Motivate me to study',
-                      ]
-                    : activeAgent.id ===
-                      'research'
-                    ? [
-                        'Research blockchain in depth',
-                        'Explain machine learning',
-                        'Deep dive into cloud computing',
-                        'Research cybersecurity basics',
-                      ]
-                    : [
-                        'What careers suit my IT degree?',
-                        'How to prepare for placements?',
-                        'Best skills for software jobs',
-                        'How to crack technical interviews?',
-                      ]
-                  ).map(
-                    (
-                      prompt,
-                      i
-                    ) => (
+                  {starterPrompts.map(
+                    (prompt, index) => (
                       <button
-                        key={i}
+                        key={index}
                         onClick={() =>
-                          setInput(
-                            prompt
-                          )
+                          setInput(prompt)
                         }
-                        style={{
-                          background:
-                            'rgba(255,255,255,0.03)',
-                          border:
-                            '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: 12,
-                          padding:
-                            '12px 14px',
-                          textAlign:
-                            'left',
-                          cursor:
-                            'pointer',
-                          color:
-                            'rgba(255,255,255,0.6)',
-                          fontSize:
-                            12.5,
-                          fontFamily:
-                            "'DM Sans', sans-serif",
-                        }}
+                        className="starter-prompt"
                       >
                         {prompt}
                       </button>
                     )
                   )}
+
                 </div>
+
               </div>
             )}
 
-
-            {/* =================================
-                CHAT MESSAGES
-            ================================= */}
-
+            {/* MESSAGES */}
             {messages.map(
-              (msg, i) => (
+              (msg, index) => (
                 <div
-                  key={i}
-                  style={{
-                    marginBottom: 24,
-                    display: 'flex',
-                    flexDirection:
-                      'column',
-                    alignItems:
-                      msg.role ===
-                      'user'
-                        ? 'flex-end'
-                        : 'flex-start',
-                  }}
+                  key={
+                    msg._id ||
+                    `${msg.role}-${index}`
+                  }
+                  className={`message-row ${
+                    msg.role === 'user'
+                      ? 'user-message'
+                      : 'assistant-message'
+                  }`}
                 >
 
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color:
-                        'rgba(255,255,255,0.25)',
-                      marginBottom: 6,
-                      paddingLeft:
-                        msg.role ===
-                        'user'
-                          ? 0
-                          : 4,
-                    }}
-                  >
-                    {msg.role ===
-                    'user'
+                  <div className="message-label">
+                    {msg.role === 'user'
                       ? '👤 You'
                       : `${activeAgent.icon} ${activeAgent.name}`}
                   </div>
 
-
                   <div
-                    style={{
-                      maxWidth:
-                        msg.role ===
-                        'user'
-                          ? '72%'
-                          : '88%',
-                      background:
-                        msg.role ===
-                        'user'
-                          ? `linear-gradient(135deg, ${activeAgent.color}CC, ${activeAgent.color}99)`
-                          : 'rgba(255,255,255,0.05)',
-                      border:
-                        msg.role ===
-                        'user'
-                          ? 'none'
-                          : '1px solid rgba(255,255,255,0.08)',
-                      borderRadius:
-                        msg.role ===
-                        'user'
-                          ? '18px 18px 4px 18px'
-                          : '18px 18px 18px 4px',
-                      padding:
-                        '12px 16px',
-                    }}
+                    className={`message-bubble ${
+                      msg.role === 'user'
+                        ? 'user-bubble'
+                        : 'assistant-bubble'
+                    }`}
+                    style={
+                      msg.role === 'user'
+                        ? {
+                            background: `linear-gradient(135deg, ${activeAgent.color}CC, ${activeAgent.color}99)`,
+                          }
+                        : {}
+                    }
                   >
 
                     {msg.role ===
                     'user' ? (
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 14,
-                          lineHeight: 1.6,
-                        }}
-                      >
+                      <p>
                         {msg.content}
                       </p>
                     ) : (
-                      <div
-                        style={{
-                          fontSize: 14,
-                          lineHeight: 1.7,
-                        }}
-                      >
+                      <div className="markdown-content">
+
                         <ReactMarkdown
                           components={{
                             code: ({
@@ -1768,49 +1232,14 @@ export default function Chat() {
                             }) =>
                               inline ? (
                                 <code
-                                  style={{
-                                    background:
-                                      'rgba(0,0,0,0.3)',
-                                    padding:
-                                      '1px 6px',
-                                    borderRadius: 4,
-                                    fontSize: 13,
-                                    color:
-                                      '#60A5FA',
-                                    fontFamily:
-                                      'monospace',
-                                  }}
+                                  className="inline-code"
                                   {...props}
                                 >
                                   {children}
                                 </code>
                               ) : (
-                                <pre
-                                  style={{
-                                    background:
-                                      'rgba(0,0,0,0.4)',
-                                    border:
-                                      '1px solid rgba(255,255,255,0.08)',
-                                    padding:
-                                      '12px 16px',
-                                    borderRadius: 10,
-                                    overflowX:
-                                      'auto',
-                                    margin:
-                                      '8px 0',
-                                  }}
-                                >
+                                <pre className="code-block">
                                   <code
-                                    style={{
-                                      fontSize:
-                                        12.5,
-                                      color:
-                                        '#6EE7B7',
-                                      fontFamily:
-                                        'monospace',
-                                      lineHeight:
-                                        1.6,
-                                    }}
                                     {...props}
                                   >
                                     {children}
@@ -1821,16 +1250,7 @@ export default function Chat() {
                             p: ({
                               children,
                             }) => (
-                              <p
-                                style={{
-                                  margin:
-                                    '0 0 8px',
-                                  lineHeight:
-                                    1.7,
-                                  color:
-                                    'rgba(255,255,255,0.85)',
-                                }}
-                              >
+                              <p>
                                 {children}
                               </p>
                             ),
@@ -1838,15 +1258,7 @@ export default function Chat() {
                             ul: ({
                               children,
                             }) => (
-                              <ul
-                                style={{
-                                  margin:
-                                    '4px 0 8px',
-                                  paddingLeft: 20,
-                                  color:
-                                    'rgba(255,255,255,0.75)',
-                                }}
-                              >
+                              <ul>
                                 {children}
                               </ul>
                             ),
@@ -1854,15 +1266,7 @@ export default function Chat() {
                             ol: ({
                               children,
                             }) => (
-                              <ol
-                                style={{
-                                  margin:
-                                    '4px 0 8px',
-                                  paddingLeft: 20,
-                                  color:
-                                    'rgba(255,255,255,0.75)',
-                                }}
-                              >
+                              <ol>
                                 {children}
                               </ol>
                             ),
@@ -1870,14 +1274,7 @@ export default function Chat() {
                             li: ({
                               children,
                             }) => (
-                              <li
-                                style={{
-                                  marginBottom:
-                                    4,
-                                  lineHeight:
-                                    1.6,
-                                }}
-                              >
+                              <li>
                                 {children}
                               </li>
                             ),
@@ -1885,15 +1282,7 @@ export default function Chat() {
                             h1: ({
                               children,
                             }) => (
-                              <h1
-                                style={{
-                                  fontSize: 18,
-                                  fontWeight: 700,
-                                  marginBottom: 8,
-                                  color:
-                                    '#fff',
-                                }}
-                              >
+                              <h1>
                                 {children}
                               </h1>
                             ),
@@ -1901,15 +1290,7 @@ export default function Chat() {
                             h2: ({
                               children,
                             }) => (
-                              <h2
-                                style={{
-                                  fontSize: 16,
-                                  fontWeight: 700,
-                                  marginBottom: 6,
-                                  color:
-                                    '#fff',
-                                }}
-                              >
+                              <h2>
                                 {children}
                               </h2>
                             ),
@@ -1917,15 +1298,7 @@ export default function Chat() {
                             h3: ({
                               children,
                             }) => (
-                              <h3
-                                style={{
-                                  fontSize: 14,
-                                  fontWeight: 700,
-                                  marginBottom: 4,
-                                  color:
-                                    '#fff',
-                                }}
-                              >
+                              <h3>
                                 {children}
                               </h3>
                             ),
@@ -1933,13 +1306,7 @@ export default function Chat() {
                             strong: ({
                               children,
                             }) => (
-                              <strong
-                                style={{
-                                  color:
-                                    '#fff',
-                                  fontWeight: 700,
-                                }}
-                              >
+                              <strong>
                                 {children}
                               </strong>
                             ),
@@ -1949,13 +1316,7 @@ export default function Chat() {
                             }) => (
                               <blockquote
                                 style={{
-                                  borderLeft:
-                                    `3px solid ${activeAgent.color}`,
-                                  paddingLeft: 12,
-                                  margin:
-                                    '8px 0',
-                                  color:
-                                    'rgba(255,255,255,0.6)',
+                                  borderLeft: `3px solid ${activeAgent.color}`,
                                 }}
                               >
                                 {children}
@@ -1965,120 +1326,68 @@ export default function Chat() {
                         >
                           {msg.content}
                         </ReactMarkdown>
+
                       </div>
                     )}
+
                   </div>
+
                 </div>
               )
             )}
 
-
-            {/* =================================
-                TYPING INDICATOR
-            ================================= */}
-
+            {/* TYPING */}
             {loading && (
-              <div
-                style={{
-                  marginBottom: 24,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color:
-                      'rgba(255,255,255,0.25)',
-                    marginBottom: 6,
-                    paddingLeft: 4,
-                  }}
-                >
+              <div className="message-row assistant-message">
+
+                <div className="message-label">
                   {activeAgent.icon}{' '}
                   {activeAgent.name}
                 </div>
 
-                <div
-                  style={{
-                    background:
-                      'rgba(255,255,255,0.05)',
-                    border:
-                      '1px solid rgba(255,255,255,0.08)',
-                    borderRadius:
-                      '18px 18px 18px 4px',
-                    padding:
-                      '14px 18px',
-                    display:
-                      'inline-flex',
-                    gap: 6,
-                    alignItems:
-                      'center',
-                  }}
-                >
-                  {[0, 1, 2].map(
-                    (j) => (
-                      <div
-                        key={j}
-                        style={{
-                          width: 7,
-                          height: 7,
-                          borderRadius:
-                            '50%',
-                          background:
-                            activeAgent.color,
-                          animation:
-                            `bounce 1s infinite ${j * 0.15}s`,
-                          opacity: 0.8,
-                        }}
-                      />
-                    )
-                  )}
+                <div className="typing-bubble">
+
+                  <span
+                    style={{
+                      background:
+                        activeAgent.color,
+                    }}
+                  />
+
+                  <span
+                    style={{
+                      background:
+                        activeAgent.color,
+                    }}
+                  />
+
+                  <span
+                    style={{
+                      background:
+                        activeAgent.color,
+                    }}
+                  />
+
                 </div>
+
               </div>
             )}
 
-            <div
-              ref={messagesEndRef}
-            />
+            <div ref={messagesEndRef} />
+
           </div>
-        </div>
 
+        </section>
 
-        {/* ====================================
+        {/* ==============================================
             INPUT
-        ==================================== */}
+        =============================================== */}
 
-        <div
-          style={{
-            padding:
-              '12px 20px 16px',
-            background:
-              'rgba(6,12,24,0.9)',
-            borderTop:
-              '1px solid rgba(255,255,255,0.06)',
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 760,
-              margin:
-                '0 auto',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                alignItems:
-                  'flex-end',
-                background:
-                  'rgba(255,255,255,0.05)',
-                border:
-                  '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 16,
-                padding:
-                  '8px 8px 8px 14px',
-              }}
-            >
+        <div className="input-area">
+
+          <div className="input-container">
+
+            <div className="input-box">
 
               {/* Voice */}
               <button
@@ -2087,49 +1396,32 @@ export default function Chat() {
                     ? stopRecording
                     : startRecording
                 }
-                style={{
-                  flexShrink: 0,
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  border: 'none',
-                  cursor:
-                    'pointer',
-                  background:
-                    recording
-                      ? 'rgba(239,68,68,0.2)'
-                      : 'rgba(255,255,255,0.06)',
-                  color:
-                    recording
-                      ? '#F87171'
-                      : 'rgba(255,255,255,0.4)',
-                  fontSize: 16,
-                  display: 'flex',
-                  alignItems:
-                    'center',
-                  justifyContent:
-                    'center',
-                }}
+                className={`voice-button ${
+                  recording
+                    ? 'recording'
+                    : ''
+                }`}
+                title={
+                  recording
+                    ? 'Stop recording'
+                    : 'Voice input'
+                }
               >
                 {recording
                   ? '⏹️'
                   : '🎤'}
               </button>
 
-
-              {/* Text Input */}
+              {/* Text */}
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) =>
-                  setInput(
-                    e.target.value
-                  )
+                  setInput(e.target.value)
                 }
                 onKeyDown={(e) => {
                   if (
-                    e.key ===
-                      'Enter' &&
+                    e.key === 'Enter' &&
                     !e.shiftKey
                   ) {
                     e.preventDefault();
@@ -2138,31 +1430,14 @@ export default function Chat() {
                 }}
                 placeholder={
                   recording
-                    ? '🎤 Recording... tap ⏹️ to stop'
+                    ? '🎤 Recording...'
                     : `Message ${activeAgent.name}...`
                 }
                 rows={1}
                 disabled={
-                  loading ||
-                  recording
+                  loading || recording
                 }
-                style={{
-                  flex: 1,
-                  background:
-                    'none',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#fff',
-                  fontSize: 14,
-                  fontFamily:
-                    "'DM Sans', sans-serif",
-                  resize: 'none',
-                  lineHeight: 1.6,
-                  paddingTop: 4,
-                  maxHeight: 120,
-                  overflowY:
-                    'auto',
-                }}
+                className="chat-input"
                 onInput={(e) => {
                   e.target.style.height =
                     'auto';
@@ -2176,81 +1451,909 @@ export default function Chat() {
                 }}
               />
 
-
               {/* Send */}
               <button
-                onClick={
-                  sendMessage
-                }
+                onClick={sendMessage}
                 disabled={
                   loading ||
                   !input.trim()
                 }
+                className="send-button"
                 style={{
-                  flexShrink: 0,
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  border: 'none',
-                  cursor:
-                    input.trim()
-                      ? 'pointer'
-                      : 'default',
                   background:
                     input.trim()
                       ? activeAgent.color
                       : 'rgba(255,255,255,0.06)',
-                  color: '#fff',
-                  fontSize: 16,
-                  opacity:
-                    !input.trim()
-                      ? 0.4
-                      : 1,
-                  display: 'flex',
-                  alignItems:
-                    'center',
-                  justifyContent:
-                    'center',
                 }}
               >
                 ↑
               </button>
+
             </div>
 
-            <div
-              style={{
-                textAlign:
-                  'center',
-                marginTop: 8,
-                fontSize: 11,
-                color:
-                  'rgba(255,255,255,0.2)',
-              }}
-            >
-              Enter to send ·
-              Shift+Enter for new
-              line · 🎤 for voice
+            <div className="input-hint">
+              Enter to send · Shift+Enter
+              for new line · 🎤 for voice
             </div>
+
           </div>
+
         </div>
-      </div>
 
+      </main>
 
-      {/* ======================================
+      {/* ================================================
           STYLES
-      ====================================== */}
+      ================================================= */}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
-        .no-scrollbar::-webkit-scrollbar {
+        * {
+          box-sizing: border-box;
+        }
+
+        html,
+        body,
+        #root {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+
+        body {
+          background: #0A0F1E;
+        }
+
+        button,
+        textarea,
+        input {
+          font-family: 'DM Sans', sans-serif;
+        }
+
+        .chat-app {
+          position: relative;
+          display: flex;
+          width: 100%;
+          height: 100vh;
+          min-height: 100vh;
+          background: #0A0F1E;
+          color: #fff;
+          font-family: 'DM Sans', sans-serif;
+          overflow: hidden;
+        }
+
+        /* ==========================================
+           SIDEBAR
+        ========================================== */
+
+        .chat-sidebar {
+          width: 260px;
+          min-width: 260px;
+          height: 100%;
+          background: #060C18;
+          border-right: 1px solid rgba(255,255,255,0.06);
+          flex-shrink: 0;
+          transition: width 0.25s ease,
+                      min-width 0.25s ease;
+          overflow: hidden;
+          z-index: 1000;
+        }
+
+        .sidebar-inner {
+          width: 260px;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .sidebar-header {
+          height: 62px;
+          padding: 0 14px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+        }
+
+        .sidebar-logo {
+          color: #fff;
+          text-decoration: none;
+          font-size: 19px;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+        }
+
+        .sidebar-logo span {
+          color: #3B82F6;
+        }
+
+        .sidebar-close {
+          width: 34px;
+          height: 34px;
+          border: none;
+          border-radius: 8px;
+          background: transparent;
+          color: rgba(255,255,255,0.5);
+          cursor: pointer;
+          font-size: 18px;
+        }
+
+        .sidebar-close:hover {
+          background: rgba(255,255,255,0.06);
+          color: #fff;
+        }
+
+        /* Navigation */
+
+        .sidebar-navigation {
+          padding: 10px 12px 4px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .sidebar-navigation a {
+          display: block;
+          padding: 8px 10px;
+          margin-bottom: 2px;
+          border-radius: 8px;
+          color: rgba(255,255,255,0.55);
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .sidebar-navigation a:hover {
+          color: #fff;
+          background: rgba(255,255,255,0.05);
+        }
+
+        /* New chat */
+
+        .new-chat-wrapper {
+          padding: 10px 12px;
+          flex-shrink: 0;
+        }
+
+        .new-chat-button {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(59,130,246,0.25);
+          background: rgba(59,130,246,0.12);
+          color: #60A5FA;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .new-chat-button:hover {
+          background: rgba(59,130,246,0.2);
+        }
+
+        /* Agents */
+
+        .agents-section {
+          padding: 4px 12px 8px;
+          flex-shrink: 0;
+        }
+
+        .section-label {
+          padding: 4px 2px 6px;
+          color: rgba(255,255,255,0.3);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+        }
+
+        .agent-button {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 7px 8px;
+          margin-bottom: 2px;
+          border: none;
+          border-radius: 8px;
+          background: transparent;
+          color: rgba(255,255,255,0.5);
+          cursor: pointer;
+          text-align: left;
+        }
+
+        .agent-button:hover {
+          background: rgba(255,255,255,0.04);
+          color: #fff;
+        }
+
+        .agent-active {
+          background: rgba(255,255,255,0.08);
+          color: #fff;
+        }
+
+        .agent-icon {
+          width: 30px;
+          height: 30px;
+          border-radius: 8px;
+          border: 1px solid;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          flex-shrink: 0;
+        }
+
+        .agent-information {
+          min-width: 0;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .agent-name {
+          font-size: 12.5px;
+          font-weight: 600;
+        }
+
+        .agent-description {
+          margin-top: 2px;
+          font-size: 10px;
+          color: rgba(255,255,255,0.3);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .agent-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          margin-left: auto;
+          flex-shrink: 0;
+        }
+
+        /* History */
+
+        .history-section {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          padding: 4px 12px;
+          border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .history-title {
+          margin-top: 6px;
+        }
+
+        .history-group-title {
+          padding: 7px 2px 4px;
+          color: rgba(255,255,255,0.25);
+          font-size: 10px;
+          font-weight: 600;
+        }
+
+        .history-item {
+          width: 100%;
+          display: block;
+          padding: 7px 9px;
+          margin-bottom: 2px;
+          border: none;
+          border-radius: 8px;
+          background: transparent;
+          color: rgba(255,255,255,0.6);
+          cursor: pointer;
+          font-size: 12px;
+          text-align: left;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .history-item:hover {
+          background: rgba(255,255,255,0.04);
+          color: #fff;
+        }
+
+        .history-active {
+          background: rgba(255,255,255,0.07);
+          color: #fff;
+        }
+
+        .empty-history {
+          padding: 20px 8px;
+          text-align: center;
+          color: rgba(255,255,255,0.2);
+          font-size: 12px;
+          line-height: 1.6;
+        }
+
+        .empty-history-icon {
+          font-size: 24px;
+          margin-bottom: 8px;
+        }
+
+        /* User */
+
+        .sidebar-user {
+          padding: 10px 12px;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          flex-shrink: 0;
+        }
+
+        .user-information {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+
+        .user-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: linear-gradient(
+            135deg,
+            #3B82F6,
+            #8B5CF6
+          );
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .user-details {
+          min-width: 0;
+          flex: 1;
+        }
+
+        .user-name {
+          font-size: 12px;
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .user-plan {
+          margin-top: 2px;
+          font-size: 10px;
+          color: rgba(255,255,255,0.35);
+        }
+
+        .user-actions {
+          display: flex;
+          gap: 6px;
+        }
+
+        .user-actions a,
+        .user-actions button {
+          flex: 1;
+          padding: 6px 4px;
+          border-radius: 8px;
+          font-size: 11px;
+          text-align: center;
+          text-decoration: none;
+          cursor: pointer;
+        }
+
+        .user-actions a {
+          color: rgba(255,255,255,0.5);
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .user-actions button {
+          color: #F87171;
+          background: rgba(239,68,68,0.1);
+          border: 1px solid rgba(239,68,68,0.2);
+        }
+
+        /* ==========================================
+           MAIN
+        ========================================== */
+
+        .chat-main {
+          flex: 1;
+          min-width: 0;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        /* ==========================================
+           TOPBAR
+        ========================================== */
+
+        .chat-topbar {
+          height: 62px;
+          min-height: 62px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 0 16px;
+          background: rgba(6,12,24,0.95);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          flex-shrink: 0;
+          z-index: 20;
+        }
+
+        .topbar-left {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .menu-button {
+          width: 34px;
+          height: 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          border: none;
+          border-radius: 8px;
+          background: rgba(255,255,255,0.04);
+          color: rgba(255,255,255,0.7);
+          cursor: pointer;
+          font-size: 19px;
+        }
+
+        .menu-button:hover {
+          background: rgba(255,255,255,0.08);
+          color: #fff;
+        }
+
+        .desktop-navigation {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+        }
+
+        .desktop-navigation a {
+          color: rgba(255,255,255,0.55);
+          text-decoration: none;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+        }
+
+        .desktop-navigation a:hover {
+          color: #fff;
+        }
+
+        .active-agent-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .active-agent-icon {
+          width: 34px;
+          height: 34px;
+          border-radius: 9px;
+          border: 1px solid;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 17px;
+          flex-shrink: 0;
+        }
+
+        .active-agent-text {
+          min-width: 0;
+        }
+
+        .active-agent-name {
+          font-size: 13px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+
+        .active-agent-desc {
+          margin-top: 2px;
+          color: rgba(255,255,255,0.35);
+          font-size: 10px;
+          white-space: nowrap;
+        }
+
+        .topbar-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
+        .desktop-agent-switcher {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .desktop-agent-button {
+          width: 30px;
+          height: 30px;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+
+        .clear-button {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 9px;
+          border: 1px solid rgba(239,68,68,0.18);
+          border-radius: 8px;
+          background: rgba(239,68,68,0.1);
+          color: #F87171;
+          cursor: pointer;
+          font-size: 11px;
+          white-space: nowrap;
+        }
+
+        /* ==========================================
+           MESSAGES
+        ========================================== */
+
+        .messages-area {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding: 24px 0;
+        }
+
+        .messages-container {
+          width: 100%;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 0 20px;
+        }
+
+        .empty-chat {
+          text-align: center;
+          padding-top: 55px;
+        }
+
+        .empty-chat-icon {
+          width: 72px;
+          height: 72px;
+          margin: 0 auto 18px;
+          border-radius: 20px;
+          border: 1px solid;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 42px;
+        }
+
+        .empty-chat h1 {
+          margin: 0 0 8px;
+          font-size: 25px;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+        }
+
+        .empty-chat > p {
+          max-width: 430px;
+          margin: 0 auto 30px;
+          color: rgba(255,255,255,0.4);
+          font-size: 14px;
+          line-height: 1.7;
+        }
+
+        .starter-prompts {
+          width: 100%;
+          max-width: 540px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+
+        .starter-prompt {
+          min-width: 0;
+          min-height: 62px;
+          padding: 12px 14px;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 12px;
+          background: rgba(255,255,255,0.03);
+          color: rgba(255,255,255,0.6);
+          cursor: pointer;
+          text-align: left;
+          font-size: 12.5px;
+          line-height: 1.5;
+        }
+
+        .starter-prompt:hover {
+          background: rgba(255,255,255,0.06);
+          color: #fff;
+        }
+
+        /* Messages */
+
+        .message-row {
+          display: flex;
+          flex-direction: column;
+          margin-bottom: 24px;
+          min-width: 0;
+        }
+
+        .user-message {
+          align-items: flex-end;
+        }
+
+        .assistant-message {
+          align-items: flex-start;
+        }
+
+        .message-label {
+          margin-bottom: 6px;
+          padding-left: 4px;
+          color: rgba(255,255,255,0.25);
+          font-size: 11px;
+        }
+
+        .message-bubble {
+          min-width: 0;
+          max-width: 88%;
+          padding: 12px 16px;
+          border-radius: 18px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        .user-bubble {
+          max-width: 72%;
+          border-radius: 18px 18px 4px 18px;
+        }
+
+        .assistant-bubble {
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 18px 18px 18px 4px;
+        }
+
+        .message-bubble p {
+          margin: 0;
+          font-size: 14px;
+          line-height: 1.65;
+        }
+
+        .markdown-content {
+          min-width: 0;
+          max-width: 100%;
+          color: rgba(255,255,255,0.85);
+          font-size: 14px;
+          line-height: 1.7;
+          overflow-wrap: anywhere;
+        }
+
+        .markdown-content p {
+          margin: 0 0 8px;
+        }
+
+        .markdown-content p:last-child {
+          margin-bottom: 0;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+          margin: 4px 0 8px;
+          padding-left: 20px;
+        }
+
+        .markdown-content li {
+          margin-bottom: 4px;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+          color: #fff;
+        }
+
+        .markdown-content h1 {
+          font-size: 18px;
+        }
+
+        .markdown-content h2 {
+          font-size: 16px;
+        }
+
+        .markdown-content h3 {
+          font-size: 14px;
+        }
+
+        .inline-code {
+          background: rgba(0,0,0,0.3);
+          padding: 1px 6px;
+          border-radius: 4px;
+          color: #60A5FA;
+          font-family: monospace;
+          font-size: 13px;
+        }
+
+        .code-block {
+          max-width: 100%;
+          overflow-x: auto;
+          padding: 12px 14px;
+          margin: 8px 0;
+          border-radius: 10px;
+          background: rgba(0,0,0,0.4);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .code-block code {
+          color: #6EE7B7;
+          font-family: monospace;
+          font-size: 12px;
+          line-height: 1.6;
+          white-space: pre;
+        }
+
+        /* Typing */
+
+        .typing-bubble {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 14px 18px;
+          border-radius: 18px 18px 18px 4px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .typing-bubble span {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          animation: bounce 1s infinite;
+          opacity: 0.5;
+        }
+
+        .typing-bubble span:nth-child(2) {
+          animation-delay: 0.15s;
+        }
+
+        .typing-bubble span:nth-child(3) {
+          animation-delay: 0.3s;
+        }
+
+        /* ==========================================
+           INPUT
+        ========================================== */
+
+        .input-area {
+          flex-shrink: 0;
+          padding: 12px 20px 16px;
+          background: rgba(6,12,24,0.98);
+          border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .input-container {
+          width: 100%;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+
+        .input-box {
+          width: 100%;
+          display: flex;
+          align-items: flex-end;
+          gap: 8px;
+          padding: 8px 8px 8px 10px;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 16px;
+          background: rgba(255,255,255,0.05);
+        }
+
+        .voice-button,
+        .send-button {
+          width: 36px;
+          height: 36px;
+          min-width: 36px;
+          border: none;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+
+        .voice-button {
+          background: rgba(255,255,255,0.06);
+          color: rgba(255,255,255,0.4);
+          font-size: 16px;
+        }
+
+        .voice-button.recording {
+          background: rgba(239,68,68,0.2);
+          color: #F87171;
+          animation: pulse 1s infinite;
+        }
+
+        .chat-input {
+          flex: 1;
+          min-width: 0;
+          max-width: 100%;
+          padding: 5px 0;
+          border: none;
+          outline: none;
+          resize: none;
+          background: transparent;
+          color: #fff;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+
+        .chat-input::placeholder {
+          color: rgba(255,255,255,0.3);
+        }
+
+        .send-button {
+          color: #fff;
+          font-size: 17px;
+          opacity: 1;
+        }
+
+        .send-button:disabled {
+          cursor: default;
+          opacity: 0.4;
+        }
+
+        .input-hint {
+          margin-top: 8px;
+          text-align: center;
+          color: rgba(255,255,255,0.2);
+          font-size: 11px;
+        }
+
+        /* ==========================================
+           MOBILE BACKDROP
+        ========================================== */
+
+        .mobile-sidebar-backdrop {
           display: none;
         }
 
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+        /* ==========================================
+           SCROLLBAR
+        ========================================== */
+
+        .no-scrollbar::-webkit-scrollbar {
+          width: 5px;
+          height: 5px;
         }
+
+        .no-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .no-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.08);
+          border-radius: 10px;
+        }
+
+        /* ==========================================
+           ANIMATIONS
+        ========================================== */
 
         @keyframes bounce {
           0%, 100% {
@@ -2274,21 +2377,294 @@ export default function Chat() {
           }
         }
 
-        * {
-          box-sizing: border-box;
-        }
+        /* ==========================================
+           TABLET
+        ========================================== */
 
         @media (max-width: 900px) {
+
+          .desktop-navigation {
+            gap: 10px;
+          }
+
+          .desktop-navigation a {
+            font-size: 12px;
+          }
+
+          .desktop-agent-switcher {
+            display: none;
+          }
+
+          .active-agent-header {
+            margin-left: auto;
+            margin-right: auto;
+          }
+
+        }
+
+        /* ==========================================
+           MOBILE
+        ========================================== */
+
+        @media (max-width: 640px) {
+
+          .chat-app {
+            width: 100%;
+            height: 100dvh;
+            min-height: 100dvh;
+          }
+
+          /* -----------------------------------------
+             MOBILE SIDEBAR
+          ----------------------------------------- */
+
+          .chat-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 280px !important;
+            min-width: 280px !important;
+            height: 100dvh;
+            transform: translateX(-105%);
+            transition: transform 0.25s ease;
+            box-shadow: 12px 0 35px rgba(0,0,0,0.5);
+            z-index: 1001;
+          }
+
+          .chat-sidebar.sidebar-open {
+            transform: translateX(0);
+          }
+
+          .chat-sidebar.sidebar-closed {
+            transform: translateX(-105%);
+          }
+
+          .sidebar-inner {
+            width: 280px;
+          }
+
+          /* -----------------------------------------
+             BACKDROP
+          ----------------------------------------- */
+
+          .mobile-sidebar-backdrop {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.58);
+            backdrop-filter: blur(2px);
+            z-index: 1000;
+          }
+
+          /* -----------------------------------------
+             TOPBAR
+          ----------------------------------------- */
+
+          .chat-topbar {
+            height: 58px;
+            min-height: 58px;
+            padding: 0 8px;
+            gap: 6px;
+          }
+
+          .topbar-left {
+            gap: 6px;
+            flex-shrink: 0;
+          }
+
+          .menu-button {
+            width: 36px;
+            height: 36px;
+            font-size: 19px;
+          }
+
+          /* Hide desktop navigation */
           .desktop-navigation {
             display: none;
           }
+
+          .active-agent-header {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            justify-content: center;
+          }
+
+          .active-agent-icon {
+            width: 32px;
+            height: 32px;
+            font-size: 15px;
+          }
+
+          .active-agent-name {
+            font-size: 12px;
+          }
+
+          .active-agent-desc {
+            font-size: 9px;
+          }
+
+          .topbar-actions {
+            flex-shrink: 0;
+          }
+
+          .desktop-agent-switcher {
+            display: none;
+          }
+
+          .clear-button {
+            padding: 6px 7px;
+            font-size: 10px;
+          }
+
+          .clear-button span {
+            display: none;
+          }
+
+          /* -----------------------------------------
+             MESSAGES
+          ----------------------------------------- */
+
+          .messages-area {
+            padding: 18px 0;
+          }
+
+          .messages-container {
+            padding: 0 12px;
+          }
+
+          .empty-chat {
+            padding-top: 35px;
+          }
+
+          .empty-chat-icon {
+            width: 62px;
+            height: 62px;
+            margin-bottom: 14px;
+            border-radius: 17px;
+            font-size: 34px;
+          }
+
+          .empty-chat h1 {
+            font-size: 22px;
+          }
+
+          .empty-chat > p {
+            padding: 0 12px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            line-height: 1.6;
+          }
+
+          /* Single column starter buttons */
+          .starter-prompts {
+            grid-template-columns: 1fr;
+            gap: 8px;
+            padding: 0 4px;
+          }
+
+          .starter-prompt {
+            min-height: auto;
+            padding: 11px 13px;
+          }
+
+          /* Messages */
+          .message-row {
+            margin-bottom: 18px;
+          }
+
+          .message-bubble {
+            max-width: 94%;
+            padding: 10px 13px;
+          }
+
+          .user-bubble {
+            max-width: 88%;
+          }
+
+          .message-bubble p {
+            font-size: 13.5px;
+          }
+
+          .markdown-content {
+            font-size: 13.5px;
+          }
+
+          .code-block {
+            max-width: calc(100vw - 55px);
+            padding: 10px;
+            overflow-x: auto;
+          }
+
+          /* -----------------------------------------
+             INPUT
+          ----------------------------------------- */
+
+          .input-area {
+            padding: 8px 8px 10px;
+          }
+
+          .input-box {
+            gap: 5px;
+            padding: 6px;
+            border-radius: 14px;
+          }
+
+          .voice-button,
+          .send-button {
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
+          }
+
+          .chat-input {
+            font-size: 14px;
+            min-width: 0;
+          }
+
+          .input-hint {
+            display: none;
+          }
+
         }
 
-        @media (max-width: 640px) {
-          .no-scrollbar {
-            scrollbar-width: none;
+        /* ==========================================
+           VERY SMALL PHONES
+        ========================================== */
+
+        @media (max-width: 360px) {
+
+          .chat-topbar {
+            padding: 0 5px;
           }
+
+          .active-agent-name {
+            font-size: 11px;
+          }
+
+          .active-agent-desc {
+            display: none;
+          }
+
+          .clear-button {
+            padding: 5px;
+          }
+
+          .messages-container {
+            padding: 0 9px;
+          }
+
+          .message-bubble {
+            max-width: 96%;
+          }
+
+          .user-bubble {
+            max-width: 92%;
+          }
+
         }
+
       `}</style>
     </div>
   );
