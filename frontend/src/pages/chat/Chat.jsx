@@ -732,7 +732,7 @@ export default function Chat() {
           </div>
 
           {/* Navigation */}
-          <div className="sidebar-navigation">
+          {/* <div className="sidebar-navigation">
 
             <Link
               to="/dashboard"
@@ -770,7 +770,7 @@ export default function Chat() {
               💼 Career
             </Link>
 
-          </div>
+          </div> */}
 
           {/* New Chat */}
           <div className="new-chat-wrapper">
