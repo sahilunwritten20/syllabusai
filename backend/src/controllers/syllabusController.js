@@ -4,6 +4,7 @@ const pdfParse = require('pdf-parse');
 const Syllabus = require('../models/Syllabus');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
+const PLANS = require('../config/plans');
 
 const { analyzeSyllabus } = require('../agents/syllabusAgent');
 
@@ -23,14 +24,28 @@ const uploadSyllabus = async (req, res) => {
 
     filePath = req.file.path;
 
-    // 🔥 Get user + subscription
+    // 🔥 Get user
     const user = await User.findById(req.user.userId);
-    const sub = await Subscription.findOne({ userId: req.user.userId });
 
-    if (!user || !sub) {
+    if (!user) {
       return res.status(403).json({
         success: false,
-        message: 'User or subscription not found'
+        message: 'User not found'
+      });
+    }
+
+    // 🔥 Get subscription
+    let sub = await Subscription.findOne({
+      userId: req.user.userId
+    });
+
+    // ✅ Auto-create FREE subscription for new users
+    if (!sub) {
+      sub = await Subscription.create({
+        userId: req.user.userId,
+        plan: 'free',
+        status: 'active',
+        features: PLANS.free.features
       });
     }
 
@@ -59,10 +74,16 @@ const uploadSyllabus = async (req, res) => {
     // ✅ AI Analyze
     const analyzed = await analyzeSyllabus(syllabusText);
 
-    console.log('🤖 AI analyzed syllabus:', analyzed.branch, analyzed.semester);
+    console.log(
+      '🤖 AI analyzed syllabus:',
+      analyzed.branch,
+      analyzed.semester
+    );
 
     // ✅ Delete old syllabus
-    await Syllabus.findOneAndDelete({ userId: req.user.userId });
+    await Syllabus.findOneAndDelete({
+      userId: req.user.userId
+    });
 
     // ✅ Save new syllabus
     const syllabus = await Syllabus.create({
@@ -101,7 +122,10 @@ const uploadSyllabus = async (req, res) => {
         estimatedHours: syllabus.estimatedHours,
         subjects: syllabus.subjects.map(s => ({
           name: s.name,
-          totalTopics: s.units.reduce((acc, u) => acc + u.topics.length, 0)
+          totalTopics: s.units.reduce(
+            (acc, u) => acc + u.topics.length,
+            0
+          )
         }))
       }
     });
@@ -157,7 +181,9 @@ const markTopicComplete = async (req, res) => {
   try {
     const { subjectId, unitId, topicId } = req.params;
 
-    const syllabus = await Syllabus.findOne({ userId: req.user.userId });
+    const syllabus = await Syllabus.findOne({
+      userId: req.user.userId
+    });
 
     if (!syllabus) {
       return res.status(404).json({
@@ -180,13 +206,23 @@ const markTopicComplete = async (req, res) => {
       sub.units.forEach(u => {
         u.topics.forEach(t => {
           totalTopics++;
-          if (t.isCompleted) completedTopics++;
+
+          if (t.isCompleted) {
+            completedTopics++;
+          }
         });
       });
 
-      const subTotal = sub.units.reduce((a, u) => a + u.topics.length, 0);
-      const subDone = sub.units.reduce((a, u) =>
-        a + u.topics.filter(t => t.isCompleted).length, 0);
+      const subTotal = sub.units.reduce(
+        (a, u) => a + u.topics.length,
+        0
+      );
+
+      const subDone = sub.units.reduce(
+        (a, u) =>
+          a + u.topics.filter(t => t.isCompleted).length,
+        0
+      );
 
       sub.progress = subTotal > 0
         ? Math.round((subDone / subTotal) * 100)
@@ -194,7 +230,10 @@ const markTopicComplete = async (req, res) => {
     });
 
     syllabus.completedTopics = completedTopics;
-    syllabus.overallProgress = Math.round((completedTopics / totalTopics) * 100);
+
+    syllabus.overallProgress = totalTopics > 0
+      ? Math.round((completedTopics / totalTopics) * 100)
+      : 0;
 
     await syllabus.save();
 
@@ -220,4 +259,3 @@ module.exports = {
   getMySyllabus,
   markTopicComplete
 };
-
