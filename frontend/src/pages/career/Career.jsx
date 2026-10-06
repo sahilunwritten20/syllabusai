@@ -1,169 +1,198 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { chatAPI, syllabusAPI } from '../../services/api';
+import { chatAPI } from '../../services/api';
 import toast from 'react-hot-toast';
-
-const JOBS = [
-  {
-    title: 'Software Developer', company: 'TCS', match: 89,
-    skills: ['DSA', 'DBMS', 'Web Dev', 'OS'],
-    missing: ['OS'], salary: '₹4.5 - 6 LPA', icon: '🏢'
-  },
-  {
-    title: 'Full Stack Developer', company: 'Startup · Remote', match: 91,
-    skills: ['React', 'Node.js', 'MongoDB'],
-    missing: ['Docker'], salary: '₹5 - 8 LPA', icon: '🟠'
-  },
-  {
-    title: 'Backend Engineer', company: 'Infosys', match: 74,
-    skills: ['DSA', 'DBMS'],
-    missing: ['Networks', 'OS'], salary: '₹3.6 - 5 LPA', icon: '🔵'
-  },
-  {
-    title: 'Data Analyst', company: 'Wipro', match: 68,
-    skills: ['DBMS', 'Python'],
-    missing: ['ML', 'Statistics'], salary: '₹4 - 6 LPA', icon: '📊'
-  },
-  {
-    title: 'DevOps Engineer', company: 'Amazon', match: 55,
-    skills: ['Networks', 'OS'],
-    missing: ['Docker', 'AWS', 'CI/CD'], salary: '₹6 - 10 LPA', icon: '⚙️'
-  },
-  {
-    title: 'Cybersecurity Analyst', company: 'Deloitte', match: 62,
-    skills: ['Networks', 'OS'],
-    missing: ['Security+', 'Ethical Hacking'], salary: '₹5 - 9 LPA', icon: '🛡️'
-  },
-];
+import ReactMarkdown from 'react-markdown';
 
 export default function Career() {
-  const [syllabus, setSyllabus] = useState(null);
-  const [advice, setAdvice] = useState('');
-  const [loadingAdvice, setLoadingAdvice] = useState(false);
-  const [selectedJob, setSelectedJob] = useState(null);
+  const [question, setQuestion] = useState('');
+  const [response, setResponse] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchSyllabus();
-  }, []);
+  const prompts = [
+    'What careers match my IT engineering degree?',
+    'How do I prepare for campus placements?',
+    'What skills should I build for software development?',
+    'How to crack a technical interview at a product company?',
+    'What is the difference between service and product companies?',
+    'How do I build a strong developer portfolio?',
+  ];
 
-  const fetchSyllabus = async () => {
+  const ask = async (q) => {
+    const query = q || question;
+    if (!query.trim()) { toast.error('Enter a question'); return; }
+    setLoading(true);
+    setResponse('');
     try {
-      const res = await syllabusAPI.getMy();
-      setSyllabus(res.data.syllabus);
-    } catch {}
-  };
-
-  const getCareerAdvice = async () => {
-    setLoadingAdvice(true);
-    try {
-      const res = await chatAPI.sendMessage(
-        `Give me career advice for a ${syllabus?.branch || 'IT'} Semester ${syllabus?.semester || 4} student. What skills should I focus on to get a good job? Keep it concise and actionable.`,
-        'mentor'
-      );
-      setAdvice(res.data.message);
-    } catch {
-      toast.error('Failed to get advice');
+      const res = await chatAPI.sendMessage(query, 'mentor');
+      setResponse(res.data.message || '');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed');
     }
-    setLoadingAdvice(false);
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between bg-gray-900">
-        <Link to="/dashboard" className="text-2xl font-black">Syllabus<span className="text-blue-500">AI</span></Link>
-        <div className="flex gap-4 text-sm">
-          <Link to="/dashboard" className="text-gray-400 hover:text-white">📊 Dashboard</Link>
-          <Link to="/chat" className="text-gray-400 hover:text-white">🤖 AI Chat</Link>
-          <Link to="/learn" className="text-gray-400 hover:text-white">📚 Learn</Link>
+    <div style={s.root}>
+      <style>{css}</style>
+      <div style={s.grid} />
+
+      <nav style={s.nav}>
+        <Link to="/dashboard" style={s.brand}>
+          <div style={s.brandIcon}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/><path d="M2 17L12 22L22 17" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/><path d="M2 12L12 17L22 12" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/></svg></div>
+          <span style={s.brandText}>SyllabusAI</span>
+        </Link>
+        <div style={s.navLinks}>
+          {[{to:'/dashboard',l:'Dashboard'},{to:'/chat',l:'Chat'},{to:'/learn',l:'Learn'},{to:'/exam',l:'Exam'}].map(({to,l}) => (
+            <Link key={to} to={to} style={s.navLink} className="nav-link">{l}</Link>
+          ))}
         </div>
       </nav>
 
-      <div className="max-w-6xl mx-auto p-6">
-        <h1 className="text-3xl font-black mb-2">💼 Career Bridge</h1>
-        <p className="text-gray-400 mb-6">
-          Mentor Agent found job matches based on your {syllabus?.branch || 'IT'} syllabus
-        </p>
+      <main style={s.main}>
+        <div style={s.container}>
+          <div style={s.pageHeader}>
+            <h1 style={s.heading}>Career guide</h1>
+            <p style={s.sub}>Your AI mentor for placements, skills, and career planning</p>
+          </div>
 
-        {/* Readiness Banner */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6 flex items-center gap-4">
-          <div className="text-4xl">🎯</div>
-          <div className="flex-1">
-            <div className="font-bold text-lg">You're 68% ready for Software Engineer roles</div>
-            <div className="text-gray-400 text-sm mt-1">
-              Master <span className="text-blue-400">Computer Networks</span> and{' '}
-              <span className="text-blue-400">OS</span> to reach 85% match
+          <div style={s.inputCard}>
+            <div style={s.inputRow}>
+              <input value={question} onChange={e => setQuestion(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && ask()}
+                placeholder="Ask anything about your career, placements, or skills..."
+                style={s.input} className="input-focus" />
+              <button onClick={() => ask()} disabled={loading} style={s.askBtn} className="ask-btn">
+                {loading ? <span style={s.spinner} className="spin" /> : 'Ask'}
+              </button>
             </div>
           </div>
-          <button
-            onClick={getCareerAdvice}
-            disabled={loadingAdvice}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded-xl text-sm font-bold transition"
-          >
-            {loadingAdvice ? '🤖 Thinking...' : 'Get AI Advice 🤖'}
-          </button>
-        </div>
 
-        {/* AI Advice */}
-        {advice && (
-          <div className="bg-blue-900/20 border border-blue-800/50 rounded-2xl p-6 mb-6">
-            <div className="text-xs text-blue-400 font-bold mb-2">🎯 MENTOR AGENT ADVICE</div>
-            <pre className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap font-sans">
-              {advice}
-            </pre>
+          <div style={s.promptsSection}>
+            <div style={s.promptsLabel}>Suggested questions</div>
+            <div style={s.promptsGrid}>
+              {prompts.map((p, i) => (
+                <button key={i} onClick={() => { setQuestion(p); ask(p); }}
+                  style={s.promptCard} className="prompt-card">
+                  <span style={s.promptText}>{p}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+              ))}
+            </div>
           </div>
-        )}
 
-        {/* Jobs Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {JOBS.map((job, i) => (
-            <div
-              key={i}
-              className="bg-gray-900 border border-gray-800 hover:border-blue-600 rounded-2xl p-5 cursor-pointer transition"
-              onClick={() => setSelectedJob(selectedJob?.title === job.title ? null : job)}
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="text-3xl">{job.icon}</div>
-                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                  job.match >= 80 ? 'bg-green-900/50 text-green-400' :
-                  job.match >= 65 ? 'bg-yellow-900/50 text-yellow-400' :
-                  'bg-red-900/50 text-red-400'
-                }`}>
-                  {job.match}% match
-                </span>
+          {loading && (
+            <div style={s.loadingCard}>
+              <div style={s.loadingDots}>
+                {[0,1,2].map(i => <div key={i} style={s.dot} className={`dot dot-${i}`} />)}
               </div>
-              <div className="font-bold text-lg mb-1">{job.title}</div>
-              <div className="text-gray-400 text-sm mb-3">{job.company}</div>
-              <div className="flex flex-wrap gap-1 mb-3">
-                {job.skills.map(s => (
-                  <span key={s} className={`text-xs px-2 py-1 rounded-md ${
-                    job.missing.includes(s)
-                      ? 'bg-red-900/30 text-red-400 border border-red-800/50'
-                      : 'bg-green-900/30 text-green-400 border border-green-800/50'
-                  }`}>
-                    {job.missing.includes(s) ? '✗ ' : '✓ '}{s}
-                  </span>
-                ))}
-              </div>
-              <div className="text-yellow-400 font-bold text-sm">{job.salary}</div>
+              <p style={s.loadingText}>Mentor is thinking...</p>
+            </div>
+          )}
 
-              {selectedJob?.title === job.title && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <div className="text-xs text-gray-400 mb-2">Skills to develop:</div>
-                  {job.missing.map(s => (
-                    <div key={s} className="flex items-center gap-2 mb-1">
-                      <span className="text-red-400 text-xs">✗</span>
-                      <span className="text-sm text-gray-300">{s}</span>
-                      <Link to="/learn" className="ml-auto text-xs text-blue-400 hover:underline">
-                        Learn →
-                      </Link>
-                    </div>
-                  ))}
+          {response && !loading && (
+            <div style={s.responseCard} className="fade-in">
+              <div style={s.responseHeader}>
+                <div style={s.mentorBadge}>
+                  <div style={s.mentorDot} />
+                  Mentor Agent
                 </div>
-              )}
+              </div>
+              <div style={s.divider} />
+              <div style={s.responseBody}>
+                <ReactMarkdown components={{
+                  code: ({inline, children, ...p}) => inline
+                    ? <code style={s.inlineCode} {...p}>{children}</code>
+                    : <pre style={s.codeBlock}><code style={s.codeInner} {...p}>{children}</code></pre>,
+                  h1: ({children}) => <h1 style={s.mdH1}>{children}</h1>,
+                  h2: ({children}) => <h2 style={s.mdH2}>{children}</h2>,
+                  h3: ({children}) => <h3 style={s.mdH3}>{children}</h3>,
+                  p: ({children}) => <p style={s.mdP}>{children}</p>,
+                  ul: ({children}) => <ul style={s.mdUl}>{children}</ul>,
+                  ol: ({children}) => <ol style={s.mdOl}>{children}</ol>,
+                  li: ({children}) => <li style={s.mdLi}>{children}</li>,
+                  strong: ({children}) => <strong style={{color:'#fff',fontWeight:700}}>{children}</strong>,
+                }}>
+                  {response}
+                </ReactMarkdown>
+              </div>
+              <div style={s.responseFooter}>
+                <button onClick={() => { setResponse(''); setQuestion(''); }} style={s.clearBtn} className="clear-btn">Ask another</button>
+                <Link to="/chat" style={s.chatLink} className="chat-link">Continue in chat</Link>
+              </div>
             </div>
-          ))}
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
+
+const s = {
+  root: { minHeight:'100vh', background:'#07090F', color:'#fff', fontFamily:"'Inter',-apple-system,sans-serif" },
+  grid: { position:'fixed', inset:0, backgroundImage:'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)', backgroundSize:'48px 48px', pointerEvents:'none', zIndex:0 },
+  nav: { position:'sticky', top:0, zIndex:50, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', height:60, background:'rgba(7,9,15,0.85)', backdropFilter:'blur(20px)', borderBottom:'1px solid rgba(255,255,255,0.06)' },
+  brand: { display:'flex', alignItems:'center', gap:10, textDecoration:'none' },
+  brandIcon: { width:32, height:32, borderRadius:9, background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center' },
+  brandText: { fontSize:16, fontWeight:700, color:'#fff', letterSpacing:'-0.03em' },
+  navLinks: { display:'flex', gap:28 },
+  navLink: { color:'rgba(255,255,255,0.5)', textDecoration:'none', fontSize:13, fontWeight:500 },
+  main: { position:'relative', zIndex:1 },
+  container: { maxWidth:860, margin:'0 auto', padding:'40px 32px 80px' },
+  pageHeader: { marginBottom:32 },
+  heading: { fontSize:28, fontWeight:800, letterSpacing:'-0.04em', margin:'0 0 6px' },
+  sub: { fontSize:14, color:'rgba(255,255,255,0.4)', margin:0 },
+  inputCard: { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:18, padding:'16px', marginBottom:24 },
+  inputRow: { display:'flex', gap:10 },
+  input: { flex:1, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:'12px 16px', color:'#fff', fontSize:14, outline:'none', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
+  askBtn: { background:'#3B82F6', border:'none', borderRadius:12, padding:'12px 24px', color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s', minWidth:80, display:'flex', alignItems:'center', justifyContent:'center' },
+  promptsSection: { marginBottom:28 },
+  promptsLabel: { fontSize:12, color:'rgba(255,255,255,0.3)', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:12 },
+  promptsGrid: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 },
+  promptCard: { display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:14, padding:'14px 16px', cursor:'pointer', textAlign:'left', transition:'all 0.2s', width:'100%' },
+  promptText: { fontSize:13, color:'rgba(255,255,255,0.6)', lineHeight:1.5, flex:1 },
+  spinner: { display:'inline-block', width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%' },
+  loadingCard: { display:'flex', flexDirection:'column', alignItems:'center', gap:16, padding:'64px 0' },
+  loadingDots: { display:'flex', gap:8 },
+  dot: { width:8, height:8, borderRadius:'50%', background:'#F97316' },
+  loadingText: { fontSize:13, color:'rgba(255,255,255,0.3)', margin:0 },
+  responseCard: { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:'28px 32px' },
+  responseHeader: { marginBottom:16 },
+  mentorBadge: { display:'flex', alignItems:'center', gap:8, fontSize:12, fontWeight:600, color:'rgba(249,115,22,0.8)', letterSpacing:'0.04em' },
+  mentorDot: { width:6, height:6, borderRadius:'50%', background:'#F97316' },
+  divider: { height:1, background:'rgba(255,255,255,0.07)', marginBottom:20 },
+  responseBody: {},
+  responseFooter: { display:'flex', gap:12, alignItems:'center', marginTop:24, paddingTop:20, borderTop:'1px solid rgba(255,255,255,0.07)' },
+  clearBtn: { background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:'8px 18px', color:'rgba(255,255,255,0.5)', fontSize:12, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
+  chatLink: { fontSize:12, color:'#60A5FA', textDecoration:'none', fontWeight:500 },
+  inlineCode: { background:'rgba(255,255,255,0.08)', padding:'2px 7px', borderRadius:5, fontSize:13, color:'#93C5FD', fontFamily:'monospace' },
+  codeBlock: { background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:'16px 20px', overflowX:'auto', margin:'12px 0' },
+  codeInner: { fontSize:13, color:'#6EE7B7', fontFamily:'monospace', lineHeight:1.6 },
+  mdH1: { fontSize:20, fontWeight:800, letterSpacing:'-0.03em', margin:'0 0 10px', color:'#fff' },
+  mdH2: { fontSize:17, fontWeight:700, margin:'18px 0 8px', color:'#fff' },
+  mdH3: { fontSize:15, fontWeight:700, margin:'14px 0 6px', color:'#fff' },
+  mdP: { fontSize:14, color:'rgba(255,255,255,0.7)', lineHeight:1.8, margin:'0 0 10px' },
+  mdUl: { margin:'6px 0 10px', paddingLeft:20 },
+  mdOl: { margin:'6px 0 10px', paddingLeft:20 },
+  mdLi: { fontSize:14, color:'rgba(255,255,255,0.65)', lineHeight:1.7, marginBottom:5 },
+};
+
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing:border-box; } body { margin:0; -webkit-font-smoothing:antialiased; }
+  .fade-in { animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  .spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .nav-link:hover { color: rgba(255,255,255,0.9) !important; }
+  .input-focus:focus { border-color: rgba(59,130,246,0.5) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important; }
+  .ask-btn:hover { background: #2563EB !important; }
+  .prompt-card:hover { background: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.13) !important; }
+  .clear-btn:hover { background: rgba(255,255,255,0.08) !important; }
+  .chat-link:hover { text-decoration: underline !important; }
+  .dot-0 { animation: bounce 1s infinite 0s; }
+  .dot-1 { animation: bounce 1s infinite 0.15s; }
+  .dot-2 { animation: bounce 1s infinite 0.3s; }
+  @keyframes bounce { 0%,100% { transform:translateY(0); opacity:0.4; } 50% { transform:translateY(-6px); opacity:1; } }
+  input::placeholder { color: rgba(255,255,255,0.2); }
+`;
