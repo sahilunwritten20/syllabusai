@@ -682,7 +682,7 @@ export default function Chat() {
   ------------------------------------------------------- */
 
   return (
-    <div className="chat-app">
+    <div className={`chat-app ${sidebarOpen ? 'sidebar-visible' : 'sidebar-hidden'}`}>
 
       {/* ================================================
           MOBILE SIDEBAR BACKDROP
@@ -806,20 +806,14 @@ export default function Chat() {
               >
 
                 <span
-                  className="agent-icon"
+                  className="agent-name-mark"
                   style={{
-                    background:
-                      activeAgent.id === agent.id
-                        ? `${agent.color}25`
-                        : 'rgba(255,255,255,0.05)',
-                    borderColor:
-                      activeAgent.id === agent.id
-                        ? `${agent.color}50`
-                        : 'rgba(255,255,255,0.06)',
+                    background: activeAgent.id === agent.id
+                      ? agent.color
+                      : 'rgba(255,255,255,0.22)',
                   }}
-                >
-                  {agent.icon}
-                </span>
+                  aria-hidden="true"
+                />
 
                 <span className="agent-information">
 
@@ -909,7 +903,6 @@ export default function Chat() {
                                 )
                               }
                             >
-                              {activeAgent.icon}{' '}
                               {session.title ||
                                 'New Chat'}
                             </button>
@@ -1025,17 +1018,11 @@ export default function Chat() {
           {/* Center/Agent */}
           <div className="active-agent-header">
 
-            <div
-              className="active-agent-icon"
-              style={{
-                background:
-                  `${activeAgent.color}20`,
-                borderColor:
-                  `${activeAgent.color}40`,
-              }}
-            >
-              {activeAgent.icon}
-            </div>
+            <span
+              className="active-agent-dot"
+              style={{ background: activeAgent.color }}
+              aria-hidden="true"
+            />
 
             <div className="active-agent-text">
 
@@ -1076,7 +1063,7 @@ export default function Chat() {
                         : 'none',
                   }}
                 >
-                  {agent.icon}
+                  {agent.name}
                 </button>
               ))}
 
@@ -1528,16 +1515,28 @@ export default function Chat() {
         ========================================== */
 
         .chat-sidebar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          bottom: 0;
           width: 260px;
           min-width: 260px;
-          height: 100%;
+          height: 100dvh;
           background: #060C18;
           border-right: 1px solid rgba(255,255,255,0.06);
           flex-shrink: 0;
-          transition: width 0.25s ease,
-                      min-width 0.25s ease;
+          transform: translateX(-105%);
+          transition: transform 0.25s ease;
           overflow: hidden;
-          z-index: 1000;
+          z-index: 1001;
+        }
+
+        .chat-sidebar.sidebar-open {
+          transform: translateX(0);
+        }
+
+        .chat-sidebar.sidebar-closed {
+          transform: translateX(-105%);
         }
 
         .sidebar-inner {
@@ -1677,16 +1676,12 @@ export default function Chat() {
           color: #fff;
         }
 
-        .agent-icon {
-          width: 30px;
-          height: 30px;
-          border-radius: 8px;
-          border: 1px solid;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 15px;
+        .agent-name-mark {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
           flex-shrink: 0;
+          box-shadow: 0 0 0 3px rgba(255,255,255,0.025);
         }
 
         .agent-information {
@@ -1872,6 +1867,16 @@ export default function Chat() {
   overflow: hidden;
 }
 
+        .chat-app.sidebar-visible .chat-main {
+          margin-left: 260px;
+          transition: margin-left 0.25s ease;
+        }
+
+        .chat-app.sidebar-hidden .chat-main {
+          margin-left: 0;
+          transition: margin-left 0.25s ease;
+        }
+
         /* ==========================================
            TOPBAR
         ========================================== */
@@ -1985,8 +1990,9 @@ export default function Chat() {
         }
 
         .desktop-agent-button {
-          width: 30px;
-          height: 30px;
+          padding: 0 8px;
+          min-width: 0;
+          height: 28px;
           border: none;
           border-radius: 8px;
           cursor: pointer;
@@ -2409,6 +2415,11 @@ export default function Chat() {
 
         @media (max-width: 640px) {
 
+          .chat-app.sidebar-visible .chat-main,
+          .chat-app.sidebar-hidden .chat-main {
+            margin-left: 0;
+          }
+
           .chat-app {
             width: 100%;
             height: 100dvh;
@@ -2492,10 +2503,11 @@ export default function Chat() {
             justify-content: center;
           }
 
-          .active-agent-icon {
-            width: 32px;
-            height: 32px;
-            font-size: 15px;
+          .active-agent-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
           }
 
           .active-agent-name {
