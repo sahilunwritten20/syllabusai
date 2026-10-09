@@ -4,7 +4,9 @@ import API from '../../services/api';
 import toast from 'react-hot-toast';
 
 const NavLink = ({ to, label }) => (
-  <Link to={to} style={navLinkStyle} className="nav-link">{label}</Link>
+  <Link to={to} className="settings-nav-link">
+    {label}
+  </Link>
 );
 
 export default function Settings() {
@@ -14,12 +16,24 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [payLoading, setPayLoading] = useState('');
   const [activeTab, setActiveTab] = useState('subscription');
+  const [dataLoading, setDataLoading] = useState(true);
+  const [deletingKey, setDeletingKey] = useState('');
 
   useEffect(() => {
     fetchData();
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    document.body.appendChild(script);
+
+    if (!window.Razorpay) {
+      const existingScript = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      );
+
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+    }
   }, []);
 
   const fetchData = async () => {
@@ -28,79 +42,1026 @@ export default function Settings() {
         API.get('/keys'),
         API.get('/payment/subscription')
       ]);
+
       setApiKeys(keysRes.data.keys || []);
-      setSubscription(subRes.data.subscription);
-    } catch {}
+      setSubscription(subRes.data.subscription || null);
+    } catch {
+      toast.error('Unable to load settings');
+    } finally {
+      setDataLoading(false);
+    }
   };
 
   const handleUpgrade = async (plan) => {
+    if (payLoading) return;
+
     setPayLoading(plan);
+
     try {
+      if (!window.Razorpay) {
+        toast.error('Payment system is still loading. Please try again.');
+        return;
+      }
+
       const res = await API.post('/payment/create-order', { plan });
-      const { order, key, amount, name } = res.data;
+      const { order, key, name } = res.data;
+
+      if (!order?.id || !key) {
+        toast.error('Unable to initialize payment');
+        return;
+      }
+
       const options = {
-        key, amount, currency: 'INR',
-        name: 'SyllabusAI', description: name,
+        key,
+        amount: order.amount,
+        currency: order.currency || 'INR',
+        name: 'SyllabusAI',
+        description: name || `SyllabusAI ${plan} plan`,
         order_id: order.id,
+
         handler: async (response) => {
           try {
-            const verifyRes = await API.post('/payment/verify', { ...response, plan });
-            if (verifyRes.data.success) { toast.success('Plan activated'); fetchData(); }
-          } catch { toast.error('Verification failed'); }
+            const verifyRes = await API.post('/payment/verify', {
+              ...response,
+              plan
+            });
+
+            if (verifyRes.data.success) {
+              toast.success('Plan activated successfully');
+              await fetchData();
+            } else {
+              toast.error('Payment verification failed');
+            }
+          } catch {
+            toast.error('Payment verification failed');
+          }
         },
-        prefill: { name: '', email: '' },
-        theme: { color: '#3B82F6' }
+
+        modal: {
+          ondismiss: () => {
+            setPayLoading('');
+          }
+        },
+
+        theme: {
+          color: '#3B82F6'
+        }
       };
+
       const rzp = new window.Razorpay(options);
+
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again.');
+        setPayLoading('');
+      });
+
       rzp.open();
-    } catch (err) { toast.error(err.response?.data?.message || 'Payment failed'); }
-    setPayLoading('');
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || 'Unable to start payment'
+      );
+    } finally {
+      setPayLoading('');
+    }
   };
 
   const createKey = async () => {
-    if (!keyName.trim()) { toast.error('Enter a name'); return; }
+    if (!keyName.trim()) {
+      toast.error('Enter a name for your API key');
+      return;
+    }
+
+    if (loading) return;
+
     setLoading(true);
+
     try {
-      await API.post('/keys', { name: keyName });
-      toast.success('API key created');
+      await API.post('/keys', {
+        name: keyName.trim()
+      });
+
+      toast.success('API key created successfully');
       setKeyName('');
-      fetchData();
-    } catch { toast.error('Failed to create key'); }
-    setLoading(false);
+      await fetchData();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || 'Failed to create API key'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteKey = async (id) => {
+    if (!id || deletingKey) return;
+
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this API key? This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    setDeletingKey(id);
+
     try {
       await API.delete(`/keys/${id}`);
-      toast.success('Key deleted');
-      fetchData();
-    } catch { toast.error('Failed to delete'); }
+      toast.success('API key deleted');
+      await fetchData();
+    } catch {
+      toast.error('Failed to delete API key');
+    } finally {
+      setDeletingKey('');
+    }
   };
 
-  const copyKey = (key) => {
-    navigator.clipboard.writeText(key);
-    toast.success('Copied to clipboard');
+  const copyKey = async (key) => {
+    if (!key) {
+      toast.error('API key is unavailable');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(key);
+      toast.success('API key copied');
+    } catch {
+      toast.error('Unable to copy API key');
+    }
   };
 
   const plans = [
-    { id: 'free', name: 'Free', price: '₹0', period: 'forever', features: ['50 messages / month', '1 syllabus upload', 'Basic agents', 'Chat history'] },
-    { id: 'pro', name: 'Pro', price: '₹299', period: '/ month', features: ['1,000 messages / month', '10 uploads', 'All 6 agents', 'Voice input', 'Memory system'], popular: true },
-    { id: 'college', name: 'College', price: '₹9,999', period: '/ month', features: ['Unlimited everything', 'Teacher dashboard', 'Analytics', 'Custom branding'] },
+    {
+      id: 'free',
+      name: 'Free',
+      price: '₹0',
+      period: 'forever',
+      description: 'Get started with the essentials',
+      features: [
+        '50 messages / month',
+        '1 syllabus upload',
+        'Basic agents',
+        'Chat history'
+      ]
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: '₹299',
+      period: '/ month',
+      description: 'For focused, everyday learning',
+      features: [
+        '1,000 messages / month',
+        '10 uploads',
+        'All 6 agents',
+        'Voice input',
+        'Memory system'
+      ],
+      popular: true
+    },
+    {
+      id: 'college',
+      name: 'College',
+      price: '₹9,999',
+      period: '/ month',
+      description: 'For institutions and teams',
+      features: [
+        'Unlimited everything',
+        'Teacher dashboard',
+        'Analytics',
+        'Custom branding'
+      ]
+    }
   ];
 
-  return (
-    <div style={s.root}>
-      <style>{css}</style>
-      <div style={s.grid} />
+  const currentPlan = subscription?.plan?.toLowerCase();
 
-      <nav style={s.nav}>
-        <Link to="/dashboard" style={s.brand}>
-          <div style={s.brandIcon}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/><path d="M2 17L12 22L22 17" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/><path d="M2 12L12 17L22 12" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/></svg>
-          </div>
-          <span style={s.brandText}>SyllabusAI</span>
+  return (
+    <div className="settings-page">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        .settings-page,
+        .settings-page * {
+          box-sizing: border-box;
+        }
+
+        .settings-page {
+          min-height: 100vh;
+          min-width: 320px;
+          background: #07090f;
+          color: #f8fafc;
+          font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          overflow-x: clip;
+          -webkit-font-smoothing: antialiased;
+        }
+
+        .settings-page button,
+        .settings-page input {
+          font: inherit;
+        }
+
+        .settings-page button:focus-visible,
+        .settings-page a:focus-visible,
+        .settings-page input:focus-visible {
+          outline: 2px solid #93c5fd;
+          outline-offset: 3px;
+        }
+
+        .settings-background {
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+          background-size: 48px 48px;
+        }
+
+        .settings-nav {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          min-height: 68px;
+          padding: 12px clamp(16px, 4vw, 40px);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          background: rgba(7,9,15,0.88);
+          backdrop-filter: blur(20px);
+        }
+
+        .settings-brand {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+          color: white;
+          text-decoration: none;
+        }
+
+        .settings-brand-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border: 1px solid rgba(59,130,246,0.25);
+          border-radius: 11px;
+          background: rgba(59,130,246,0.12);
+        }
+
+        .settings-brand-name {
+          font-size: 17px;
+          font-weight: 800;
+          letter-spacing: -0.7px;
+        }
+
+        .settings-nav-links {
+          display: flex;
+          align-items: center;
+          gap: clamp(12px, 2.5vw, 28px);
+        }
+
+        .settings-nav-link {
+          color: #8b93a5;
+          text-decoration: none;
+          font-size: 13px;
+          font-weight: 500;
+          transition: color .2s ease;
+        }
+
+        .settings-nav-link:hover {
+          color: #fff;
+        }
+
+        .settings-main {
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          max-width: 1160px;
+          margin: 0 auto;
+          padding: 42px clamp(16px, 4vw, 36px) 76px;
+        }
+
+        .settings-header {
+          margin-bottom: 30px;
+        }
+
+        .settings-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 15px;
+          padding: 7px 11px;
+          border: 1px solid rgba(96,165,250,.18);
+          border-radius: 999px;
+          background: rgba(59,130,246,.08);
+          color: #93c5fd;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+        }
+
+        .settings-eyebrow-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #60a5fa;
+          box-shadow: 0 0 12px rgba(96,165,250,.5);
+        }
+
+        .settings-heading {
+          margin: 0 0 10px;
+          font-size: clamp(30px, 4vw, 42px);
+          font-weight: 800;
+          line-height: 1.15;
+          letter-spacing: -1.8px;
+          overflow-wrap: anywhere;
+        }
+
+        .settings-subheading {
+          max-width: 600px;
+          margin: 0;
+          color: #8b93a5;
+          font-size: 14px;
+          line-height: 1.8;
+        }
+
+        .settings-tabs {
+          display: flex;
+          width: fit-content;
+          max-width: 100%;
+          gap: 5px;
+          margin-bottom: 28px;
+          padding: 5px;
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 13px;
+          background: rgba(255,255,255,.035);
+        }
+
+        .settings-tab {
+          min-height: 40px;
+          padding: 10px 18px;
+          border: 1px solid transparent;
+          border-radius: 9px;
+          background: transparent;
+          color: #8b93a5;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: color .2s, background .2s, border-color .2s;
+        }
+
+        .settings-tab:hover {
+          color: #fff;
+        }
+
+        .settings-tab.active {
+          border-color: rgba(255,255,255,.08);
+          background: rgba(255,255,255,.08);
+          color: #fff;
+        }
+
+        .settings-current-plan {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          margin-bottom: 26px;
+          padding: 20px 22px;
+          border: 1px solid rgba(59,130,246,.2);
+          border-radius: 16px;
+          background: linear-gradient(110deg, rgba(59,130,246,.11), rgba(59,130,246,.035));
+        }
+
+        .settings-current-label {
+          margin-bottom: 6px;
+          color: #93c5fd;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 1.4px;
+          text-transform: uppercase;
+        }
+
+        .settings-current-name {
+          font-size: 21px;
+          font-weight: 800;
+          letter-spacing: -.5px;
+          overflow-wrap: anywhere;
+        }
+
+        .settings-renewal {
+          color: #a4adbd;
+          font-size: 12px;
+          line-height: 1.6;
+          text-align: right;
+        }
+
+        .settings-plans-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          align-items: stretch;
+          gap: 18px;
+        }
+
+        .settings-plan-card {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          padding: 25px 22px 22px;
+          border: 1px solid rgba(255,255,255,.09);
+          border-radius: 19px;
+          background: rgba(15,19,30,.86);
+          transition: transform .2s ease, border-color .2s ease;
+        }
+
+        .settings-plan-card:hover {
+          transform: translateY(-3px);
+          border-color: rgba(255,255,255,.17);
+        }
+
+        .settings-plan-card.pro {
+          border-color: rgba(59,130,246,.45);
+          background: linear-gradient(155deg, rgba(59,130,246,.12), rgba(15,19,30,.94) 48%);
+          box-shadow: 0 12px 50px rgba(0,0,0,.12);
+        }
+
+        .settings-plan-card.current {
+          border-color: rgba(16,185,129,.42);
+        }
+
+        .settings-plan-badge {
+          align-self: flex-start;
+          margin-bottom: 17px;
+          padding: 5px 10px;
+          border: 1px solid rgba(96,165,250,.2);
+          border-radius: 999px;
+          background: rgba(59,130,246,.13);
+          color: #93c5fd;
+          font-size: 10px;
+          font-weight: 700;
+        }
+
+        .settings-plan-name {
+          margin-bottom: 7px;
+          color: #e2e8f0;
+          font-size: 16px;
+          font-weight: 700;
+        }
+
+        .settings-plan-description {
+          min-height: 36px;
+          margin-bottom: 20px;
+          color: #7e8799;
+          font-size: 12px;
+          line-height: 1.6;
+        }
+
+        .settings-plan-price {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 5px;
+          margin-bottom: 22px;
+        }
+
+        .settings-plan-amount {
+          font-size: clamp(27px, 3vw, 34px);
+          font-weight: 800;
+          letter-spacing: -1.5px;
+          overflow-wrap: anywhere;
+        }
+
+        .settings-plan-period {
+          color: #7e8799;
+          font-size: 12px;
+        }
+
+        .settings-plan-divider {
+          height: 1px;
+          margin-bottom: 21px;
+          background: rgba(255,255,255,.08);
+        }
+
+        .settings-plan-features {
+          display: flex;
+          flex-direction: column;
+          gap: 13px;
+          flex: 1;
+          margin: 0 0 25px;
+          padding: 0;
+          list-style: none;
+        }
+
+        .settings-plan-feature {
+          display: flex;
+          align-items: flex-start;
+          gap: 9px;
+          color: #b4bdcc;
+          font-size: 12px;
+          line-height: 1.6;
+          overflow-wrap: anywhere;
+        }
+
+        .settings-plan-feature svg {
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .settings-plan-button {
+          width: 100%;
+          min-height: 45px;
+          padding: 11px 12px;
+          border: 1px solid rgba(255,255,255,.12);
+          border-radius: 11px;
+          background: rgba(255,255,255,.055);
+          color: #e2e8f0;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: transform .2s, background .2s, opacity .2s;
+        }
+
+        .settings-plan-button.pro-button {
+          border-color: transparent;
+          background: #3b82f6;
+          color: #fff;
+        }
+
+        .settings-plan-button:hover:not(:disabled) {
+          transform: translateY(-1px);
+          background: #2563eb;
+          color: #fff;
+        }
+
+        .settings-plan-button:disabled {
+          cursor: not-allowed;
+          opacity: .65;
+        }
+
+        .settings-plan-current,
+        .settings-plan-free {
+          padding: 12px 0;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .settings-plan-current {
+          color: #34d399;
+        }
+
+        .settings-plan-free {
+          color: #737d8f;
+        }
+
+        .settings-spinner {
+          display: inline-block;
+          width: 14px;
+          height: 14px;
+          flex-shrink: 0;
+          border: 2px solid rgba(255,255,255,.28);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: settingsSpin .75s linear infinite;
+        }
+
+        @keyframes settingsSpin {
+          to { transform: rotate(360deg); }
+        }
+
+        .settings-api-panel {
+          min-width: 0;
+          padding: clamp(18px, 3vw, 28px);
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 19px;
+          background: rgba(15,19,30,.86);
+        }
+
+        .settings-api-title {
+          margin: 0 0 7px;
+          font-size: 19px;
+          font-weight: 800;
+          letter-spacing: -.5px;
+        }
+
+        .settings-api-description {
+          margin: 0;
+          color: #8b93a5;
+          font-size: 13px;
+          line-height: 1.8;
+          overflow-wrap: anywhere;
+        }
+
+        .settings-api-create {
+          display: flex;
+          gap: 11px;
+          margin: 23px 0 25px;
+        }
+
+        .settings-api-input {
+          width: 100%;
+          min-width: 0;
+          min-height: 47px;
+          flex: 1;
+          padding: 12px 14px;
+          border: 1px solid rgba(255,255,255,.1);
+          border-radius: 11px;
+          background: rgba(255,255,255,.04);
+          color: #fff;
+          font-size: 13px;
+          outline: none;
+          transition: border-color .2s, box-shadow .2s;
+        }
+
+        .settings-api-input::placeholder {
+          color: #687184;
+        }
+
+        .settings-api-input:focus {
+          border-color: rgba(96,165,250,.6);
+          box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+        }
+
+        .settings-api-create-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          min-height: 47px;
+          padding: 12px 18px;
+          border: none;
+          border-radius: 11px;
+          background: #3b82f6;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 700;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: background .2s, opacity .2s;
+        }
+
+        .settings-api-create-button:hover:not(:disabled) {
+          background: #2563eb;
+        }
+
+        .settings-api-create-button:disabled {
+          cursor: not-allowed;
+          opacity: .6;
+        }
+
+        .settings-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          padding: 44px 18px;
+          border: 1px dashed rgba(255,255,255,.1);
+          border-radius: 14px;
+          text-align: center;
+        }
+
+        .settings-empty-title {
+          margin: 0;
+          color: #a0a9b9;
+          font-size: 13px;
+          line-height: 1.7;
+        }
+
+        .settings-empty-subtitle {
+          margin: -7px 0 0;
+          color: #687184;
+          font-size: 11px;
+          line-height: 1.6;
+        }
+
+        .settings-keys-list {
+          display: flex;
+          flex-direction: column;
+          gap: 11px;
+        }
+
+        .settings-key-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          min-width: 0;
+          padding: 17px;
+          border: 1px solid rgba(255,255,255,.07);
+          border-radius: 14px;
+          background: rgba(255,255,255,.025);
+        }
+
+        .settings-key-info {
+          min-width: 0;
+          flex: 1;
+        }
+
+        .settings-key-name {
+          margin-bottom: 7px;
+          color: #f1f5f9;
+          font-size: 13px;
+          font-weight: 700;
+          overflow-wrap: anywhere;
+        }
+
+        .settings-key-value {
+          margin-bottom: 6px;
+          color: #94a3b8;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 11px;
+          overflow-wrap: anywhere;
+          word-break: break-all;
+        }
+
+        .settings-key-meta {
+          color: #687184;
+          font-size: 11px;
+        }
+
+        .settings-key-actions {
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .settings-key-button {
+          min-height: 36px;
+          padding: 8px 12px;
+          border: 1px solid rgba(255,255,255,.1);
+          border-radius: 9px;
+          background: rgba(255,255,255,.05);
+          color: #cbd5e1;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background .2s;
+        }
+
+        .settings-key-button:hover:not(:disabled) {
+          background: rgba(255,255,255,.11);
+        }
+
+        .settings-key-button.danger {
+          border-color: rgba(248,113,113,.18);
+          background: rgba(239,68,68,.07);
+          color: #fca5a5;
+        }
+
+        .settings-key-button.danger:hover:not(:disabled) {
+          background: rgba(239,68,68,.15);
+        }
+
+        .settings-key-button:disabled {
+          cursor: not-allowed;
+          opacity: .5;
+        }
+
+        .settings-loading {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          min-height: 180px;
+          color: #8b93a5;
+          font-size: 13px;
+        }
+
+        .settings-fade-in {
+          animation: settingsFadeIn .3s ease both;
+        }
+
+        @keyframes settingsFadeIn {
+          from { opacity: 0; transform: translateY(7px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 900px) {
+          .settings-plans-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .settings-plan-card:last-child {
+            grid-column: 1 / -1;
+          }
+
+          .settings-plan-card:last-child .settings-plan-features {
+            min-height: auto;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .settings-nav {
+            min-height: 62px;
+            gap: 12px;
+            padding: 11px 16px;
+          }
+
+          .settings-brand-name {
+            font-size: 15px;
+          }
+
+          .settings-brand-icon {
+            width: 32px;
+            height: 32px;
+          }
+
+          .settings-nav-links {
+            gap: 13px;
+          }
+
+          .settings-nav-link {
+            font-size: 11px;
+          }
+
+          .settings-main {
+            padding: 30px 17px 48px;
+          }
+
+          .settings-header {
+            margin-bottom: 24px;
+          }
+
+          .settings-heading {
+            letter-spacing: -1.2px;
+          }
+
+          .settings-subheading {
+            font-size: 13px;
+          }
+
+          .settings-tabs {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+            margin-bottom: 22px;
+          }
+
+          .settings-tab {
+            padding: 10px 9px;
+          }
+
+          .settings-current-plan {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 12px;
+            padding: 17px;
+          }
+
+          .settings-renewal {
+            text-align: left;
+          }
+
+          .settings-plans-grid {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 14px;
+          }
+
+          .settings-plan-card,
+          .settings-plan-card:last-child {
+            grid-column: auto;
+            padding: 22px;
+          }
+
+          .settings-plan-description {
+            min-height: auto;
+          }
+
+          .settings-plan-amount {
+            font-size: 32px;
+          }
+
+          .settings-plan-features {
+            gap: 12px;
+          }
+
+          .settings-api-create {
+            flex-direction: column;
+          }
+
+          .settings-api-create-button {
+            width: 100%;
+          }
+
+          .settings-key-row {
+            align-items: stretch;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+          }
+
+          .settings-key-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+          }
+
+          .settings-key-button {
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .settings-nav {
+            padding-left: 12px;
+            padding-right: 12px;
+          }
+
+          .settings-nav-links {
+            gap: 9px;
+          }
+
+          .settings-nav-link {
+            font-size: 10px;
+          }
+
+          .settings-brand {
+            gap: 7px;
+          }
+
+          .settings-brand-name {
+            font-size: 14px;
+          }
+
+          .settings-main {
+            padding-left: 13px;
+            padding-right: 13px;
+          }
+
+          .settings-api-panel {
+            padding: 16px;
+          }
+
+          .settings-plan-card {
+            padding: 18px;
+          }
+
+          .settings-key-actions {
+            gap: 7px;
+          }
+
+          .settings-key-button {
+            padding: 8px 7px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .settings-page *,
+          .settings-page *::before,
+          .settings-page *::after {
+            animation-duration: .01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: .01ms !important;
+            scroll-behavior: auto !important;
+          }
+        }
+      `}</style>
+
+      <div className="settings-background" />
+
+      <nav className="settings-nav">
+        <Link to="/dashboard" className="settings-brand">
+          <span className="settings-brand-icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="#60A5FA"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 17L12 22L22 17"
+                stroke="#60A5FA"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 12L12 17L22 12"
+                stroke="#60A5FA"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+
+          <span className="settings-brand-name">
+            Syllabus<span style={{ color: '#60A5FA' }}>AI</span>
+          </span>
         </Link>
-        <div style={s.navLinks}>
+
+        <div className="settings-nav-links">
           <NavLink to="/dashboard" label="Dashboard" />
           <NavLink to="/chat" label="Chat" />
           <NavLink to="/learn" label="Learn" />
@@ -108,209 +1069,324 @@ export default function Settings() {
         </div>
       </nav>
 
-      <main style={s.main}>
-        <div style={s.container}>
-          <div style={s.pageHeader}>
-            <h1 style={s.heading}>Settings</h1>
-            <p style={s.subheading}>Manage your subscription and API access</p>
+      <main className="settings-main">
+        <header className="settings-header">
+          <div className="settings-eyebrow">
+            <span className="settings-eyebrow-dot" />
+            ACCOUNT CONTROL CENTER
           </div>
 
-          {/* Tabs */}
-          <div style={s.tabs}>
-            {['subscription', 'api-keys'].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                style={{ ...s.tab, ...(activeTab === tab ? s.tabActive : {}) }}
-                className="tab-btn">
-                {tab === 'subscription' ? 'Subscription' : 'API Keys'}
-              </button>
-            ))}
+          <h1 className="settings-heading">Settings</h1>
+
+          <p className="settings-subheading">
+            Manage your subscription, billing plan, and API access from one
+            place.
+          </p>
+        </header>
+
+        <div className="settings-tabs" role="tablist" aria-label="Settings">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'subscription'}
+            onClick={() => setActiveTab('subscription')}
+            className={`settings-tab ${
+              activeTab === 'subscription' ? 'active' : ''
+            }`}
+          >
+            Subscription
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'api-keys'}
+            onClick={() => setActiveTab('api-keys')}
+            className={`settings-tab ${
+              activeTab === 'api-keys' ? 'active' : ''
+            }`}
+          >
+            API Keys
+          </button>
+        </div>
+
+        {dataLoading ? (
+          <div className="settings-loading">
+            <span className="settings-spinner" />
+            Loading your settings...
           </div>
-
-          {/* Subscription tab */}
-          {activeTab === 'subscription' && (
-            <div className="fade-in">
-              {subscription && (
-                <div style={s.currentPlan}>
-                  <div style={s.currentPlanLeft}>
-                    <div style={s.currentPlanLabel}>Current plan</div>
-                    <div style={s.currentPlanName}>{subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}</div>
-                  </div>
-                  {subscription.plan !== 'free' && subscription.endDate && (
-                    <div style={s.currentPlanRight}>
-                      Renews {new Date(subscription.endDate).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div style={s.plansGrid}>
-                {plans.map((plan) => {
-                  const isCurrent = subscription?.plan === plan.id;
-                  return (
-                    <div key={plan.id} style={{ ...s.planCard, ...(plan.popular ? s.planCardPro : {}), ...(isCurrent ? s.planCardCurrent : {}) }}>
-                      {plan.popular && <div style={s.planBadge}>Most popular</div>}
-                      <div style={s.planName}>{plan.name}</div>
-                      <div style={s.planPrice}>
-                        <span style={s.planAmount}>{plan.price}</span>
-                        <span style={s.planPeriod}>{plan.period}</span>
+        ) : (
+          <>
+            {activeTab === 'subscription' && (
+              <section
+                className="settings-fade-in"
+                role="tabpanel"
+                aria-label="Subscription"
+              >
+                {subscription && (
+                  <div className="settings-current-plan">
+                    <div>
+                      <div className="settings-current-label">
+                        Your current plan
                       </div>
-                      <div style={s.planDivider} />
-                      <ul style={s.planFeatures}>
-                        {plan.features.map(f => (
-                          <li key={f} style={s.planFeature}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                      {isCurrent ? (
-                        <div style={s.planCurrent}>Current plan</div>
-                      ) : plan.id === 'free' ? (
-                        <div style={s.planFreeLabel}>Free forever</div>
-                      ) : (
-                        <button onClick={() => handleUpgrade(plan.id)} disabled={payLoading === plan.id}
-                          style={{ ...s.planBtn, ...(plan.popular ? s.planBtnPro : {}) }} className="plan-btn">
-                          {payLoading === plan.id
-                            ? <span style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'center' }}><span style={s.spinner} className="spin" /> Processing...</span>
-                            : `Upgrade to ${plan.name}`}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
-          {/* API Keys tab */}
-          {activeTab === 'api-keys' && (
-            <div className="fade-in">
-              <div style={s.apiSection}>
-                <div style={s.apiSectionHeader}>
-                  <div>
-                    <h2 style={s.apiTitle}>API Keys</h2>
-                    <p style={s.apiDesc}>Use these keys to access SyllabusAI from your own applications</p>
+                      <div className="settings-current-name">
+                        {currentPlan
+                          ? currentPlan.charAt(0).toUpperCase() +
+                            currentPlan.slice(1)
+                          : 'Free'}
+                      </div>
+                    </div>
+
+                    {currentPlan !== 'free' && subscription.endDate && (
+                      <div className="settings-renewal">
+                        <div>Subscription ends or renews</div>
+                        <strong style={{ color: '#e2e8f0' }}>
+                          {new Date(subscription.endDate).toLocaleDateString(
+                            'en-IN',
+                            {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            }
+                          )}
+                        </strong>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                <div className="settings-plans-grid">
+                  {plans.map((plan) => {
+                    const isCurrent = currentPlan === plan.id;
+
+                    return (
+                      <article
+                        key={plan.id}
+                        className={`settings-plan-card ${
+                          plan.popular ? 'pro' : ''
+                        } ${isCurrent ? 'current' : ''}`}
+                      >
+                        {plan.popular && (
+                          <div className="settings-plan-badge">
+                            MOST POPULAR
+                          </div>
+                        )}
+
+                        <div className="settings-plan-name">
+                          {plan.name}
+                        </div>
+
+                        <div className="settings-plan-description">
+                          {plan.description}
+                        </div>
+
+                        <div className="settings-plan-price">
+                          <span className="settings-plan-amount">
+                            {plan.price}
+                          </span>
+
+                          <span className="settings-plan-period">
+                            {plan.period}
+                          </span>
+                        </div>
+
+                        <div className="settings-plan-divider" />
+
+                        <ul className="settings-plan-features">
+                          {plan.features.map((feature) => (
+                            <li
+                              key={feature}
+                              className="settings-plan-feature"
+                            >
+                              <svg
+                                width="15"
+                                height="15"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#34D399"
+                                strokeWidth="2.5"
+                                aria-hidden="true"
+                              >
+                                <path d="M5 12l4 4L19 6" />
+                              </svg>
+
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        {isCurrent ? (
+                          <div className="settings-plan-current">
+                            ✓ Current plan
+                          </div>
+                        ) : plan.id === 'free' ? (
+                          <div className="settings-plan-free">
+                            Free forever
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleUpgrade(plan.id)}
+                            disabled={Boolean(payLoading)}
+                            className={`settings-plan-button ${
+                              plan.popular ? 'pro-button' : ''
+                            }`}
+                          >
+                            {payLoading === plan.id ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 9
+                                }}
+                              >
+                                <span className="settings-spinner" />
+                                Processing...
+                              </span>
+                            ) : (
+                              `Upgrade to ${plan.name}`
+                            )}
+                          </button>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
-                <div style={s.apiCreate}>
+              </section>
+            )}
+
+            {activeTab === 'api-keys' && (
+              <section
+                className="settings-api-panel settings-fade-in"
+                role="tabpanel"
+                aria-label="API Keys"
+              >
+                <div>
+                  <h2 className="settings-api-title">
+                    API Keys
+                  </h2>
+
+                  <p className="settings-api-description">
+                    Create and manage API keys to connect SyllabusAI with your
+                    own applications and workflows.
+                  </p>
+                </div>
+
+                <form
+                  className="settings-api-create"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    createKey();
+                  }}
+                >
                   <input
+                    type="text"
                     value={keyName}
-                    onChange={e => setKeyName(e.target.value)}
-                    placeholder="Key name — e.g. My App"
-                    style={s.apiInput}
-                    className="input-focus"
-                    onKeyDown={e => e.key === 'Enter' && createKey()}
+                    onChange={(e) => setKeyName(e.target.value)}
+                    placeholder="Give your key a name, e.g. My App"
+                    aria-label="API key name"
+                    maxLength={80}
+                    className="settings-api-input"
+                    autoComplete="off"
                   />
-                  <button onClick={createKey} disabled={loading} style={s.apiCreateBtn} className="create-btn">
-                    {loading ? <span style={s.spinner} className="spin" /> : 'Generate key'}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !keyName.trim()}
+                    className="settings-api-create-button"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="settings-spinner" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <span aria-hidden="true">+</span>
+                        Generate key
+                      </>
+                    )}
                   </button>
-                </div>
+                </form>
 
                 {apiKeys.length === 0 ? (
-                  <div style={s.emptyState}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                    <p style={s.emptyText}>No API keys yet. Generate one above.</p>
+                  <div className="settings-empty">
+                    <svg
+                      width="36"
+                      height="36"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="rgba(148,163,184,.65)"
+                      strokeWidth="1.4"
+                      aria-hidden="true"
+                    >
+                      <rect x="3" y="11" width="18" height="11" rx="2" />
+                      <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+
+                    <p className="settings-empty-title">
+                      No API keys yet
+                    </p>
+
+                    <p className="settings-empty-subtitle">
+                      Generate your first key to get started.
+                    </p>
                   </div>
                 ) : (
-                  <div style={s.keysList}>
-                    {apiKeys.map((k, i) => (
-                      <div key={i} style={s.keyRow}>
-                        <div style={s.keyInfo}>
-                          <div style={s.keyName}>{k.name}</div>
-                          <div style={s.keyValue}>{k.key?.slice(0, 24)}...</div>
-                          <div style={s.keyMeta}>Used {k.usageCount || 0} times</div>
+                  <div className="settings-keys-list">
+                    {apiKeys.map((apiKey) => (
+                      <article
+                        key={apiKey._id}
+                        className="settings-key-row"
+                      >
+                        <div className="settings-key-info">
+                          <div className="settings-key-name">
+                            {apiKey.name || 'Unnamed API key'}
+                          </div>
+
+                          <div className="settings-key-value">
+                            {apiKey.key
+                              ? `${apiKey.key.slice(0, 24)}...`
+                              : 'Key unavailable'}
+                          </div>
+
+                          <div className="settings-key-meta">
+                            Used {apiKey.usageCount || 0} times
+                          </div>
                         </div>
-                        <div style={s.keyActions}>
-                          <button onClick={() => copyKey(k.key)} style={s.keyBtn} className="key-btn">Copy</button>
-                          <button onClick={() => deleteKey(k._id)} style={s.keyBtnDanger} className="key-btn-danger">Delete</button>
+
+                        <div className="settings-key-actions">
+                          <button
+                            type="button"
+                            onClick={() => copyKey(apiKey.key)}
+                            disabled={!apiKey.key}
+                            className="settings-key-button"
+                          >
+                            Copy key
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteKey(apiKey._id)}
+                            disabled={deletingKey === apiKey._id}
+                            className="settings-key-button danger"
+                          >
+                            {deletingKey === apiKey._id
+                              ? 'Deleting...'
+                              : 'Delete'}
+                          </button>
                         </div>
-                      </div>
+                      </article>
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-        </div>
+              </section>
+            )}
+          </>
+        )}
       </main>
     </div>
   );
 }
-
-const navLinkStyle = { color:'rgba(255,255,255,0.5)', textDecoration:'none', fontSize:13, fontWeight:500, transition:'color 0.2s' };
-
-const s = {
-  root: { minHeight:'100vh', background:'#07090F', color:'#fff', fontFamily:"'Inter',-apple-system,sans-serif" },
-  grid: { position:'fixed', inset:0, backgroundImage:'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)', backgroundSize:'48px 48px', pointerEvents:'none', zIndex:0 },
-  nav: { position:'sticky', top:0, zIndex:50, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', height:60, background:'rgba(7,9,15,0.85)', backdropFilter:'blur(20px)', borderBottom:'1px solid rgba(255,255,255,0.06)' },
-  brand: { display:'flex', alignItems:'center', gap:10, textDecoration:'none' },
-  brandIcon: { width:32, height:32, borderRadius:9, background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center' },
-  brandText: { fontSize:16, fontWeight:700, color:'#fff', letterSpacing:'-0.03em' },
-  navLinks: { display:'flex', gap:28 },
-  main: { position:'relative', zIndex:1 },
-  container: { maxWidth:900, margin:'0 auto', padding:'40px 32px 80px' },
-  pageHeader: { marginBottom:36 },
-  heading: { fontSize:28, fontWeight:800, letterSpacing:'-0.04em', margin:'0 0 6px' },
-  subheading: { fontSize:14, color:'rgba(255,255,255,0.4)', margin:0 },
-  tabs: { display:'flex', gap:4, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:4, marginBottom:32, width:'fit-content' },
-  tab: { padding:'8px 20px', borderRadius:9, border:'none', cursor:'pointer', fontSize:13, fontWeight:500, color:'rgba(255,255,255,0.4)', background:'transparent', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-  tabActive: { background:'rgba(255,255,255,0.08)', color:'#fff' },
-  currentPlan: { display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:14, padding:'16px 20px', marginBottom:24 },
-  currentPlanLeft: {},
-  currentPlanLabel: { fontSize:11, color:'rgba(96,165,250,0.7)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:4 },
-  currentPlanName: { fontSize:18, fontWeight:700, letterSpacing:'-0.03em' },
-  currentPlanRight: { fontSize:12, color:'rgba(255,255,255,0.4)' },
-  plansGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 },
-  planCard: { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:18, padding:'28px 24px', transition:'all 0.25s' },
-  planCardPro: { background:'rgba(59,130,246,0.07)', border:'1px solid rgba(59,130,246,0.2)' },
-  planCardCurrent: { border:'1px solid rgba(16,185,129,0.3)', background:'rgba(16,185,129,0.05)' },
-  planBadge: { fontSize:11, fontWeight:600, color:'#60A5FA', background:'rgba(59,130,246,0.15)', borderRadius:100, padding:'3px 10px', display:'inline-block', marginBottom:16, letterSpacing:'0.04em' },
-  planName: { fontSize:13, fontWeight:600, color:'rgba(255,255,255,0.5)', marginBottom:10 },
-  planPrice: { display:'flex', alignItems:'baseline', gap:6, marginBottom:18 },
-  planAmount: { fontSize:30, fontWeight:800, letterSpacing:'-0.04em', color:'#fff' },
-  planPeriod: { fontSize:13, color:'rgba(255,255,255,0.35)' },
-  planDivider: { height:1, background:'rgba(255,255,255,0.07)', marginBottom:18 },
-  planFeatures: { listStyle:'none', margin:'0 0 24px', padding:0, display:'flex', flexDirection:'column', gap:10 },
-  planFeature: { display:'flex', alignItems:'center', gap:9, fontSize:13, color:'rgba(255,255,255,0.55)' },
-  planBtn: { width:'100%', padding:'11px', borderRadius:11, border:'1px solid rgba(255,255,255,0.12)', background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.7)', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-  planBtnPro: { background:'#3B82F6', border:'none', color:'#fff' },
-  planCurrent: { textAlign:'center', fontSize:13, color:'#10B981', fontWeight:600, padding:'11px 0' },
-  planFreeLabel: { textAlign:'center', fontSize:13, color:'rgba(255,255,255,0.3)', padding:'11px 0' },
-  spinner: { display:'inline-block', width:13, height:13, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%' },
-  apiSection: {},
-  apiSectionHeader: { marginBottom:20 },
-  apiTitle: { fontSize:18, fontWeight:700, letterSpacing:'-0.03em', margin:'0 0 6px' },
-  apiDesc: { fontSize:13, color:'rgba(255,255,255,0.4)', margin:0 },
-  apiCreate: { display:'flex', gap:10, marginBottom:24 },
-  apiInput: { flex:1, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:'11px 14px', color:'#fff', fontSize:13, outline:'none', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-  apiCreateBtn: { background:'#3B82F6', border:'none', borderRadius:12, padding:'11px 20px', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s', whiteSpace:'nowrap' },
-  emptyState: { display:'flex', flexDirection:'column', alignItems:'center', gap:12, padding:'48px 0' },
-  emptyText: { fontSize:13, color:'rgba(255,255,255,0.25)', margin:0 },
-  keysList: { display:'flex', flexDirection:'column', gap:10 },
-  keyRow: { display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:14, padding:'16px 20px' },
-  keyInfo: {},
-  keyName: { fontSize:14, fontWeight:600, marginBottom:4 },
-  keyValue: { fontSize:12, color:'rgba(255,255,255,0.35)', fontFamily:'monospace', marginBottom:4 },
-  keyMeta: { fontSize:11, color:'rgba(255,255,255,0.25)' },
-  keyActions: { display:'flex', gap:8 },
-  keyBtn: { background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:9, padding:'6px 14px', color:'rgba(255,255,255,0.6)', fontSize:12, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-  keyBtnDanger: { background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:9, padding:'6px 14px', color:'#F87171', fontSize:12, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-};
-
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-  * { box-sizing: border-box; }
-  body { margin:0; -webkit-font-smoothing:antialiased; }
-  .fade-in { animation: fadeIn 0.4s ease; }
-  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-  .spin { animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .nav-link:hover { color: rgba(255,255,255,0.9) !important; }
-  .input-focus:focus { border-color: rgba(59,130,246,0.5) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important; }
-  .tab-btn:hover { color: rgba(255,255,255,0.8) !important; }
-  .plan-btn:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.9; }
-  .create-btn:hover { background: #2563EB !important; }
-  .key-btn:hover { background: rgba(255,255,255,0.1) !important; }
-  .key-btn-danger:hover { background: rgba(239,68,68,0.15) !important; }
-  input::placeholder { color: rgba(255,255,255,0.2); }
-`;

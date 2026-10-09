@@ -11,182 +11,1254 @@ export default function Learn() {
   const [loading, setLoading] = useState(false);
 
   const suggestions = [
-    'Binary Trees', 'Recursion', 'SQL Joins', 'Operating System scheduling',
-    'Linked Lists', 'Dynamic Programming', 'REST APIs', 'Sorting algorithms',
+    'Binary Trees',
+    'Recursion',
+    'SQL Joins',
+    'Operating System scheduling',
+    'Linked Lists',
+    'Dynamic Programming',
+    'REST APIs',
+    'Sorting algorithms'
   ];
 
   const learn = async () => {
-    if (!topic.trim()) { toast.error('Enter a topic'); return; }
+    if (!topic.trim()) {
+      toast.error('Enter a topic');
+      return;
+    }
+
+    if (loading) return;
+
     setLoading(true);
     setContent('');
+
     try {
-      const res = await teacherAPI.teach(topic, subject);
-      setContent(res.data.content || res.data.explanation || '');
+      const res = await teacherAPI.teach(topic.trim(), subject.trim());
+      const explanation = res.data.content || res.data.explanation || '';
+
+      if (!explanation.trim()) {
+        toast.error('No explanation was returned. Please try again.');
+        return;
+      }
+
+      setContent(explanation);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to load content');
+      toast.error(
+        err.response?.data?.message || 'Failed to load content'
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const startNewTopic = () => {
+    setTopic('');
+    setSubject('');
+    setContent('');
   };
 
   return (
-    <div style={s.root}>
-      <style>{css}</style>
-      <div style={s.grid} />
+    <div className="learn-page">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-      <nav style={s.nav}>
-        <Link to="/dashboard" style={s.brand}>
-          <div style={s.brandIcon}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/><path d="M2 17L12 22L22 17" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/><path d="M2 12L12 17L22 12" stroke="#60A5FA" strokeWidth="2" strokeLinejoin="round"/></svg></div>
-          <span style={s.brandText}>SyllabusAI</span>
+        .learn-page,
+        .learn-page * {
+          box-sizing: border-box;
+        }
+
+        .learn-page {
+          min-height: 100vh;
+          min-width: 320px;
+          overflow-x: clip;
+          background: #07090f;
+          color: #f8fafc;
+          font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          -webkit-font-smoothing: antialiased;
+        }
+
+        .learn-page button,
+        .learn-page input {
+          font: inherit;
+        }
+
+        .learn-page button:focus-visible,
+        .learn-page a:focus-visible,
+        .learn-page input:focus-visible {
+          outline: 2px solid #93c5fd;
+          outline-offset: 3px;
+        }
+
+        .learn-background {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          background-image:
+            linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+          background-size: 48px 48px;
+        }
+
+        .learn-nav {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          min-height: 68px;
+          padding: 12px clamp(16px, 4vw, 40px);
+          border-bottom: 1px solid rgba(255,255,255,.07);
+          background: rgba(7,9,15,.88);
+          backdrop-filter: blur(20px);
+        }
+
+        .learn-brand {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+          color: #fff;
+          text-decoration: none;
+        }
+
+        .learn-brand-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border: 1px solid rgba(59,130,246,.25);
+          border-radius: 11px;
+          background: rgba(59,130,246,.12);
+        }
+
+        .learn-brand-name {
+          font-size: 17px;
+          font-weight: 800;
+          letter-spacing: -.7px;
+        }
+
+        .learn-nav-links {
+          display: flex;
+          align-items: center;
+          gap: clamp(12px, 2.5vw, 28px);
+        }
+
+        .learn-nav-link {
+          color: #8b93a5;
+          font-size: 13px;
+          font-weight: 500;
+          text-decoration: none;
+          transition: color .2s ease;
+        }
+
+        .learn-nav-link:hover,
+        .learn-nav-link.active {
+          color: #fff;
+        }
+
+        .learn-main {
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          max-width: 1000px;
+          margin: 0 auto;
+          padding: 42px clamp(16px, 4vw, 32px) 76px;
+        }
+
+        .learn-header {
+          margin-bottom: 28px;
+        }
+
+        .learn-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 15px;
+          padding: 7px 11px;
+          border: 1px solid rgba(96,165,250,.18);
+          border-radius: 999px;
+          background: rgba(59,130,246,.08);
+          color: #93c5fd;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+        }
+
+        .learn-eyebrow-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #60a5fa;
+          box-shadow: 0 0 12px rgba(96,165,250,.5);
+        }
+
+        .learn-heading {
+          margin: 0 0 10px;
+          font-size: clamp(32px, 5vw, 44px);
+          font-weight: 800;
+          line-height: 1.12;
+          letter-spacing: -1.8px;
+          overflow-wrap: anywhere;
+        }
+
+        .learn-heading-accent {
+          color: #60a5fa;
+        }
+
+        .learn-subheading {
+          max-width: 620px;
+          margin: 0;
+          color: #8b93a5;
+          font-size: 14px;
+          line-height: 1.8;
+        }
+
+        .learn-search-card {
+          margin-bottom: 24px;
+          padding: clamp(18px, 3vw, 26px);
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 20px;
+          background: linear-gradient(145deg, rgba(17,23,37,.96), rgba(12,16,26,.96));
+          box-shadow: 0 20px 70px rgba(0,0,0,.12);
+        }
+
+        .learn-search-heading {
+          margin: 0 0 7px;
+          font-size: 17px;
+          font-weight: 750;
+          letter-spacing: -.4px;
+        }
+
+        .learn-search-description {
+          margin: 0 0 22px;
+          color: #818b9d;
+          font-size: 12px;
+          line-height: 1.7;
+        }
+
+        .learn-search-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(150px, .48fr) auto;
+          gap: 11px;
+          margin-bottom: 22px;
+        }
+
+        .learn-input {
+          width: 100%;
+          min-width: 0;
+          min-height: 48px;
+          padding: 12px 14px;
+          border: 1px solid rgba(255,255,255,.1);
+          border-radius: 11px;
+          background: rgba(4,8,16,.72);
+          color: #fff;
+          font-size: 13px;
+          outline: none;
+          transition: border-color .2s, box-shadow .2s;
+        }
+
+        .learn-input::placeholder {
+          color: #687184;
+        }
+
+        .learn-input:focus {
+          border-color: rgba(96,165,250,.65);
+          box-shadow: 0 0 0 3px rgba(59,130,246,.11);
+        }
+
+        .learn-explain-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          min-width: 112px;
+          min-height: 48px;
+          padding: 12px 20px;
+          border: none;
+          border-radius: 11px;
+          background: #3b82f6;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background .2s, transform .2s, opacity .2s;
+        }
+
+        .learn-explain-button:hover:not(:disabled) {
+          transform: translateY(-1px);
+          background: #2563eb;
+        }
+
+        .learn-explain-button:disabled {
+          cursor: not-allowed;
+          opacity: .6;
+        }
+
+        .learn-spinner {
+          display: inline-block;
+          width: 15px;
+          height: 15px;
+          flex-shrink: 0;
+          border: 2px solid rgba(255,255,255,.3);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: learnSpin .75s linear infinite;
+        }
+
+        @keyframes learnSpin {
+          to { transform: rotate(360deg); }
+        }
+
+        .learn-suggestions {
+          display: flex;
+          flex-direction: column;
+          gap: 11px;
+        }
+
+        .learn-suggestions-label {
+          color: #747f92;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: .4px;
+        }
+
+        .learn-chip-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .learn-chip {
+          max-width: 100%;
+          padding: 8px 12px;
+          border: 1px solid rgba(255,255,255,.09);
+          border-radius: 999px;
+          background: rgba(255,255,255,.035);
+          color: #aab4c5;
+          font-size: 11px;
+          line-height: 1.4;
+          text-align: left;
+          overflow-wrap: anywhere;
+          cursor: pointer;
+          transition: background .2s, border-color .2s, color .2s;
+        }
+
+        .learn-chip:hover {
+          border-color: rgba(96,165,250,.35);
+          background: rgba(59,130,246,.1);
+          color: #dbeafe;
+        }
+
+        .learn-chip:disabled {
+          cursor: not-allowed;
+          opacity: .5;
+        }
+
+        .learn-loading-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 18px;
+          min-height: 220px;
+          margin-bottom: 24px;
+          padding: 35px 20px;
+          border: 1px solid rgba(255,255,255,.07);
+          border-radius: 18px;
+          background: rgba(15,19,30,.8);
+          text-align: center;
+        }
+
+        .learn-loading-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 54px;
+          height: 54px;
+          border: 1px solid rgba(96,165,250,.2);
+          border-radius: 17px;
+          background: rgba(59,130,246,.1);
+          color: #93c5fd;
+        }
+
+        .learn-loading-title {
+          margin: 0 0 6px;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .learn-loading-description {
+          margin: 0;
+          color: #818b9d;
+          font-size: 12px;
+          line-height: 1.7;
+        }
+
+        .learn-loading-dots {
+          display: flex;
+          gap: 6px;
+        }
+
+        .learn-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #60a5fa;
+          animation: learnBounce 1s infinite ease-in-out;
+        }
+
+        .learn-dot:nth-child(2) {
+          animation-delay: .15s;
+        }
+
+        .learn-dot:nth-child(3) {
+          animation-delay: .3s;
+        }
+
+        @keyframes learnBounce {
+          0%, 100% { opacity: .35; transform: translateY(0); }
+          50% { opacity: 1; transform: translateY(-5px); }
+        }
+
+        .learn-content-card {
+          min-width: 0;
+          padding: clamp(19px, 4vw, 34px);
+          border: 1px solid rgba(255,255,255,.09);
+          border-radius: 20px;
+          background: rgba(15,19,30,.9);
+          box-shadow: 0 20px 70px rgba(0,0,0,.12);
+          animation: learnFadeIn .35s ease both;
+        }
+
+        .learn-content-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 15px;
+          min-width: 0;
+          margin-bottom: 22px;
+        }
+
+        .learn-content-heading-group {
+          min-width: 0;
+        }
+
+        .learn-content-label {
+          margin-bottom: 7px;
+          color: #7e8ba1;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 1.4px;
+          text-transform: uppercase;
+        }
+
+        .learn-content-title {
+          margin: 0;
+          color: #f8fafc;
+          font-size: clamp(21px, 3vw, 28px);
+          font-weight: 800;
+          line-height: 1.3;
+          letter-spacing: -.8px;
+          overflow-wrap: anywhere;
+        }
+
+        .learn-content-badge {
+          flex-shrink: 0;
+          max-width: 45%;
+          padding: 7px 11px;
+          border: 1px solid rgba(96,165,250,.2);
+          border-radius: 999px;
+          background: rgba(59,130,246,.09);
+          color: #93c5fd;
+          font-size: 10px;
+          font-weight: 600;
+          line-height: 1.4;
+          overflow-wrap: anywhere;
+        }
+
+        .learn-content-divider {
+          height: 1px;
+          margin-bottom: 27px;
+          background: rgba(255,255,255,.08);
+        }
+
+        .learn-content-body {
+          min-width: 0;
+          color: #cbd5e1;
+          font-size: 14px;
+          line-height: 1.85;
+          overflow-wrap: anywhere;
+          word-break: normal;
+        }
+
+        .learn-content-body h1,
+        .learn-content-body h2,
+        .learn-content-body h3,
+        .learn-content-body h4 {
+          color: #f8fafc;
+          font-weight: 750;
+          line-height: 1.4;
+          overflow-wrap: anywhere;
+        }
+
+        .learn-content-body h1 {
+          margin: 0 0 16px;
+          font-size: clamp(23px, 3vw, 29px);
+          letter-spacing: -.7px;
+        }
+
+        .learn-content-body h2 {
+          margin: 30px 0 12px;
+          padding-bottom: 9px;
+          border-bottom: 1px solid rgba(255,255,255,.07);
+          font-size: clamp(18px, 2.5vw, 21px);
+          letter-spacing: -.4px;
+        }
+
+        .learn-content-body h3 {
+          margin: 23px 0 9px;
+          font-size: 16px;
+        }
+
+        .learn-content-body h4 {
+          margin: 18px 0 8px;
+          font-size: 14px;
+        }
+
+        .learn-content-body p {
+          margin: 0 0 16px;
+          color: #b9c3d2;
+          line-height: 1.9;
+        }
+
+        .learn-content-body strong {
+          color: #f8fafc;
+          font-weight: 700;
+        }
+
+        .learn-content-body ul,
+        .learn-content-body ol {
+          margin: 12px 0 20px;
+          padding-left: 25px;
+        }
+
+        .learn-content-body li {
+          margin-bottom: 8px;
+          padding-left: 3px;
+          color: #b9c3d2;
+          line-height: 1.8;
+        }
+
+        .learn-content-body li::marker {
+          color: #60a5fa;
+        }
+
+        .learn-content-body blockquote {
+          margin: 18px 0;
+          padding: 14px 18px;
+          border-left: 3px solid #3b82f6;
+          border-radius: 0 10px 10px 0;
+          background: rgba(59,130,246,.07);
+          color: #aab8cd;
+        }
+
+        .learn-content-body blockquote p:last-child {
+          margin-bottom: 0;
+        }
+
+        .learn-content-body a {
+          color: #93c5fd;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+          overflow-wrap: anywhere;
+        }
+
+        .learn-inline-code {
+          padding: 3px 7px;
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 5px;
+          background: rgba(255,255,255,.06);
+          color: #93c5fd;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: .9em;
+          overflow-wrap: anywhere;
+        }
+
+        .learn-code-wrapper {
+          max-width: 100%;
+          margin: 16px 0 20px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.09);
+          border-radius: 12px;
+          background: #080c14;
+        }
+
+        .learn-code-label {
+          padding: 9px 14px;
+          border-bottom: 1px solid rgba(255,255,255,.07);
+          background: rgba(255,255,255,.025);
+          color: #7e8ba1;
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: .6px;
+          text-transform: uppercase;
+        }
+
+        .learn-code-block {
+          max-width: 100%;
+          margin: 0;
+          padding: 17px;
+          overflow-x: auto;
+          color: #a7f3d0;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 12px;
+          line-height: 1.8;
+          tab-size: 2;
+          white-space: pre;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .learn-content-body table {
+          display: block;
+          width: 100%;
+          max-width: 100%;
+          margin: 18px 0;
+          overflow-x: auto;
+          border-collapse: collapse;
+          font-size: 12px;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .learn-content-body th,
+        .learn-content-body td {
+          min-width: 100px;
+          padding: 10px 12px;
+          border: 1px solid rgba(255,255,255,.09);
+          text-align: left;
+          vertical-align: top;
+        }
+
+        .learn-content-body th {
+          background: rgba(59,130,246,.1);
+          color: #dbeafe;
+        }
+
+        .learn-content-body td {
+          color: #b9c3d2;
+        }
+
+        .learn-content-body hr {
+          margin: 24px 0;
+          border: 0;
+          border-top: 1px solid rgba(255,255,255,.08);
+        }
+
+        .learn-content-body img {
+          display: block;
+          max-width: 100%;
+          height: auto;
+          border-radius: 10px;
+        }
+
+        .learn-content-footer {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 30px;
+          padding-top: 21px;
+          border-top: 1px solid rgba(255,255,255,.08);
+        }
+
+        .learn-new-topic-button {
+          min-height: 41px;
+          padding: 10px 15px;
+          border: 1px solid rgba(255,255,255,.1);
+          border-radius: 10px;
+          background: rgba(255,255,255,.04);
+          color: #cbd5e1;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background .2s, border-color .2s;
+        }
+
+        .learn-new-topic-button:hover {
+          border-color: rgba(255,255,255,.18);
+          background: rgba(255,255,255,.08);
+        }
+
+        .learn-chat-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          min-height: 41px;
+          color: #93c5fd;
+          font-size: 12px;
+          font-weight: 600;
+          text-decoration: none;
+          transition: color .2s;
+        }
+
+        .learn-chat-link:hover {
+          color: #bfdbfe;
+        }
+
+        .learn-empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 15px;
+          min-height: 245px;
+          padding: 35px 22px;
+          border: 1px dashed rgba(255,255,255,.1);
+          border-radius: 18px;
+          background: rgba(255,255,255,.015);
+          text-align: center;
+        }
+
+        .learn-empty-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 58px;
+          height: 58px;
+          border: 1px solid rgba(96,165,250,.14);
+          border-radius: 18px;
+          background: rgba(59,130,246,.07);
+          color: #60a5fa;
+        }
+
+        .learn-empty-title {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 700;
+        }
+
+        .learn-empty-description {
+          max-width: 390px;
+          margin: 0;
+          color: #7e8799;
+          font-size: 12px;
+          line-height: 1.8;
+        }
+
+        @keyframes learnFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 760px) {
+          .learn-search-row {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          }
+
+          .learn-explain-button {
+            grid-column: 1 / -1;
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .learn-nav {
+            min-height: 62px;
+            gap: 12px;
+            padding: 11px 16px;
+          }
+
+          .learn-brand-name {
+            font-size: 15px;
+          }
+
+          .learn-brand-icon {
+            width: 32px;
+            height: 32px;
+          }
+
+          .learn-nav-links {
+            gap: 13px;
+          }
+
+          .learn-nav-link {
+            font-size: 11px;
+          }
+
+          .learn-main {
+            padding: 30px 17px 48px;
+          }
+
+          .learn-header {
+            margin-bottom: 23px;
+          }
+
+          .learn-heading {
+            letter-spacing: -1.3px;
+          }
+
+          .learn-subheading {
+            font-size: 13px;
+          }
+
+          .learn-search-card {
+            border-radius: 17px;
+          }
+
+          .learn-search-row {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 11px;
+            margin-bottom: 20px;
+          }
+
+          .learn-explain-button {
+            grid-column: auto;
+          }
+
+          .learn-content-card {
+            border-radius: 17px;
+          }
+
+          .learn-content-header {
+            flex-direction: column;
+            gap: 12px;
+          }
+
+          .learn-content-badge {
+            max-width: 100%;
+          }
+
+          .learn-content-divider {
+            margin-bottom: 22px;
+          }
+
+          .learn-content-body {
+            font-size: 13px;
+          }
+
+          .learn-content-body p {
+            line-height: 1.85;
+          }
+
+          .learn-content-footer {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .learn-new-topic-button,
+          .learn-chat-link {
+            justify-content: center;
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .learn-nav {
+            padding-left: 12px;
+            padding-right: 12px;
+          }
+
+          .learn-nav-links {
+            gap: 9px;
+          }
+
+          .learn-nav-link {
+            font-size: 10px;
+          }
+
+          .learn-brand {
+            gap: 7px;
+          }
+
+          .learn-brand-name {
+            font-size: 14px;
+          }
+
+          .learn-main {
+            padding-left: 13px;
+            padding-right: 13px;
+          }
+
+          .learn-search-card,
+          .learn-content-card {
+            padding: 16px;
+          }
+
+          .learn-chip {
+            padding: 7px 10px;
+            font-size: 10px;
+          }
+
+          .learn-code-block {
+            padding: 13px;
+            font-size: 11px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .learn-page *,
+          .learn-page *::before,
+          .learn-page *::after {
+            animation-duration: .01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: .01ms !important;
+            scroll-behavior: auto !important;
+          }
+        }
+      `}</style>
+
+      <div className="learn-background" />
+
+      <nav className="learn-nav">
+        <Link to="/dashboard" className="learn-brand">
+          <span className="learn-brand-icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="#60A5FA"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 17L12 22L22 17"
+                stroke="#60A5FA"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 12L12 17L22 12"
+                stroke="#60A5FA"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+
+          <span className="learn-brand-name">
+            Syllabus<span style={{ color: '#60A5FA' }}>AI</span>
+          </span>
         </Link>
-        <div style={s.navLinks}>
-          {[{to:'/dashboard',l:'Dashboard'},{to:'/chat',l:'Chat'},{to:'/exam',l:'Exam'},{to:'/career',l:'Career'}].map(({to,l}) => (
-            <Link key={to} to={to} style={s.navLink} className="nav-link">{l}</Link>
+
+        <div className="learn-nav-links">
+          {[
+            { to: '/dashboard', label: 'Dashboard' },
+            { to: '/chat', label: 'Chat' },
+            { to: '/exam', label: 'Exam' },
+            { to: '/career', label: 'Career' }
+          ].map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className="learn-nav-link"
+            >
+              {label}
+            </Link>
           ))}
         </div>
       </nav>
 
-      <main style={s.main}>
-        <div style={s.container}>
-          <div style={s.pageHeader}>
-            <h1 style={s.heading}>Learn</h1>
-            <p style={s.sub}>Deep explanations of any topic from your syllabus</p>
+      <main className="learn-main">
+        <header className="learn-header">
+          <div className="learn-eyebrow">
+            <span className="learn-eyebrow-dot" />
+            YOUR PERSONAL LEARNING SPACE
           </div>
 
-          <div style={s.searchCard}>
-            <div style={s.searchRow}>
-              <input value={topic} onChange={e => setTopic(e.target.value)} onKeyDown={e => e.key === 'Enter' && learn()}
-                placeholder="Topic — e.g. Binary Search Trees" style={s.searchInput} className="input-focus" />
-              <input value={subject} onChange={e => setSubject(e.target.value)}
-                placeholder="Subject (optional)" style={{ ...s.searchInput, maxWidth:200 }} className="input-focus" />
-              <button onClick={learn} disabled={loading} style={s.searchBtn} className="search-btn">
-                {loading ? <span style={s.spinner} className="spin" /> : 'Explain'}
-              </button>
-            </div>
-            <div style={s.suggestions}>
-              {suggestions.map(s2 => (
-                <button key={s2} onClick={() => { setTopic(s2); }} style={s.chip} className="chip">{s2}</button>
+          <h1 className="learn-heading">
+            Understand more.
+            <br />
+            <span className="learn-heading-accent">
+              Learn smarter.
+            </span>
+          </h1>
+
+          <p className="learn-subheading">
+            Get clear, detailed explanations of any topic from your syllabus.
+            Explore concepts, understand examples, and learn at your own pace.
+          </p>
+        </header>
+
+        <section className="learn-search-card">
+          <h2 className="learn-search-heading">
+            What do you want to learn?
+          </h2>
+
+          <p className="learn-search-description">
+            Enter a topic and optionally specify its subject for a more
+            focused explanation.
+          </p>
+
+          <form
+            className="learn-search-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              learn();
+            }}
+          >
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Topic, e.g. Binary Search Trees"
+              aria-label="Topic to learn"
+              className="learn-input"
+              autoComplete="off"
+            />
+
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Subject (optional)"
+              aria-label="Subject"
+              className="learn-input"
+              autoComplete="off"
+            />
+
+            <button
+              type="submit"
+              disabled={loading || !topic.trim()}
+              className="learn-explain-button"
+            >
+              {loading ? (
+                <>
+                  <span className="learn-spinner" />
+                  Preparing
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3z" />
+                    <path d="M19 15l1.1 2.9L23 19l-2.9 1.1L19 23l-1.1-2.9L15 19l2.9-1.1L19 15z" />
+                  </svg>
+                  Explain topic
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="learn-suggestions">
+            <span className="learn-suggestions-label">
+              POPULAR TOPICS
+            </span>
+
+            <div className="learn-chip-list">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setTopic(suggestion)}
+                  className="learn-chip"
+                >
+                  {suggestion}
+                </button>
               ))}
             </div>
           </div>
+        </section>
 
-          {loading && (
-            <div style={s.loadingCard}>
-              <div style={s.loadingDots}>
-                {[0,1,2].map(i => <div key={i} style={s.dot} className={`dot dot-${i}`} />)}
-              </div>
-              <p style={s.loadingText}>Preparing explanation...</p>
+        {loading && (
+          <section className="learn-loading-card" aria-live="polite">
+            <div className="learn-loading-icon">
+              <svg
+                width="25"
+                height="25"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                aria-hidden="true"
+              >
+                <path d="M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                <path d="M12 7v5l3 2" />
+              </svg>
             </div>
-          )}
 
-          {content && !loading && (
-            <div style={s.contentCard} className="fade-in">
-              <div style={s.contentHeader}>
-                <h2 style={s.contentTitle}>{topic}</h2>
-                {subject && <span style={s.contentBadge}>{subject}</span>}
-              </div>
-              <div style={s.divider} />
-              <div style={s.contentBody}>
-                <ReactMarkdown components={{
-                  code: ({inline, children, ...p}) => inline
-                    ? <code style={s.inlineCode} {...p}>{children}</code>
-                    : <pre style={s.codeBlock}><code style={s.codeInner} {...p}>{children}</code></pre>,
-                  h1: ({children}) => <h1 style={s.mdH1}>{children}</h1>,
-                  h2: ({children}) => <h2 style={s.mdH2}>{children}</h2>,
-                  h3: ({children}) => <h3 style={s.mdH3}>{children}</h3>,
-                  p: ({children}) => <p style={s.mdP}>{children}</p>,
-                  ul: ({children}) => <ul style={s.mdUl}>{children}</ul>,
-                  ol: ({children}) => <ol style={s.mdOl}>{children}</ol>,
-                  li: ({children}) => <li style={s.mdLi}>{children}</li>,
-                  strong: ({children}) => <strong style={{color:'#fff',fontWeight:700}}>{children}</strong>,
-                  blockquote: ({children}) => <blockquote style={s.mdBlockquote}>{children}</blockquote>,
-                }}>
-                  {content}
-                </ReactMarkdown>
-              </div>
-              <div style={s.contentFooter}>
-                <button onClick={() => { setTopic(''); setContent(''); }} style={s.clearBtn} className="clear-btn">New topic</button>
-                <Link to="/chat" style={s.chatLink} className="chat-link">Ask a follow-up in chat</Link>
-              </div>
+            <div>
+              <p className="learn-loading-title">
+                Preparing your explanation
+              </p>
+              <p className="learn-loading-description">
+                Organizing the key concepts into an easy-to-understand guide.
+              </p>
             </div>
-          )}
 
-          {!content && !loading && (
-            <div style={s.emptyState}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-              <p style={s.emptyText}>Enter a topic above to get a deep, clear explanation tailored to your syllabus.</p>
+            <div className="learn-loading-dots" aria-hidden="true">
+              <span className="learn-dot" />
+              <span className="learn-dot" />
+              <span className="learn-dot" />
             </div>
-          )}
-        </div>
+          </section>
+        )}
+
+        {content && !loading && (
+          <article className="learn-content-card">
+            <header className="learn-content-header">
+              <div className="learn-content-heading-group">
+                <div className="learn-content-label">
+                  YOUR STUDY GUIDE
+                </div>
+
+                <h2 className="learn-content-title">
+                  {topic}
+                </h2>
+              </div>
+
+              {subject && (
+                <span className="learn-content-badge">
+                  {subject}
+                </span>
+              )}
+            </header>
+
+            <div className="learn-content-divider" />
+
+            <div className="learn-content-body">
+              <ReactMarkdown
+                components={{
+                  code: ({ className, children, ...props }) => {
+                    const isBlock = Boolean(className);
+
+                    if (!isBlock) {
+                      return (
+                        <code
+                          className="learn-inline-code"
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      );
+                    }
+
+                    const language =
+                      className?.replace('language-', '') || 'code';
+
+                    return (
+                      <div className="learn-code-wrapper">
+                        <div className="learn-code-label">
+                          {language}
+                        </div>
+                        <pre className="learn-code-block">
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        </pre>
+                      </div>
+                    );
+                  },
+
+                  h1: ({ children }) => <h1>{children}</h1>,
+                  h2: ({ children }) => <h2>{children}</h2>,
+                  h3: ({ children }) => <h3>{children}</h3>,
+                  h4: ({ children }) => <h4>{children}</h4>,
+                  p: ({ children }) => <p>{children}</p>,
+                  ul: ({ children }) => <ul>{children}</ul>,
+                  ol: ({ children }) => <ol>{children}</ol>,
+                  li: ({ children }) => <li>{children}</li>,
+                  strong: ({ children }) => <strong>{children}</strong>,
+                  blockquote: ({ children }) => (
+                    <blockquote>{children}</blockquote>
+                  ),
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  table: ({ children }) => (
+                    <table>{children}</table>
+                  ),
+                  thead: ({ children }) => <thead>{children}</thead>,
+                  tbody: ({ children }) => <tbody>{children}</tbody>,
+                  tr: ({ children }) => <tr>{children}</tr>,
+                  th: ({ children }) => <th>{children}</th>,
+                  td: ({ children }) => <td>{children}</td>,
+                  hr: () => <hr />
+                }}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+
+            <footer className="learn-content-footer">
+              <button
+                type="button"
+                onClick={startNewTopic}
+                className="learn-new-topic-button"
+              >
+                <span aria-hidden="true">＋ </span>
+                Learn another topic
+              </button>
+
+              <Link to="/chat" className="learn-chat-link">
+                Ask a follow-up in chat
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <path d="M7 17L17 7M7 7h10v10" />
+                </svg>
+              </Link>
+            </footer>
+          </article>
+        )}
+
+        {!content && !loading && (
+          <section className="learn-empty-state">
+            <div className="learn-empty-icon">
+              <svg
+                width="27"
+                height="27"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <path d="M3 4.5A2.5 2.5 0 015.5 2H12v19H5.5A2.5 2.5 0 013 18.5z" />
+                <path d="M21 4.5A2.5 2.5 0 0018.5 2H12v19h6.5a2.5 2.5 0 002.5-2.5z" />
+                <path d="M6 7h3M6 11h3M15 7h3M15 11h3" />
+              </svg>
+            </div>
+
+            <h2 className="learn-empty-title">
+              Your next concept starts here
+            </h2>
+
+            <p className="learn-empty-description">
+              Choose a popular topic or enter something from your syllabus.
+              Your explanation will appear here, ready for you to study.
+            </p>
+          </section>
+        )}
       </main>
     </div>
   );
 }
-
-const s = {
-  root: { minHeight:'100vh', background:'#07090F', color:'#fff', fontFamily:"'Inter',-apple-system,sans-serif" },
-  grid: { position:'fixed', inset:0, backgroundImage:'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)', backgroundSize:'48px 48px', pointerEvents:'none', zIndex:0 },
-  nav: { position:'sticky', top:0, zIndex:50, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', height:60, background:'rgba(7,9,15,0.85)', backdropFilter:'blur(20px)', borderBottom:'1px solid rgba(255,255,255,0.06)' },
-  brand: { display:'flex', alignItems:'center', gap:10, textDecoration:'none' },
-  brandIcon: { width:32, height:32, borderRadius:9, background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center' },
-  brandText: { fontSize:16, fontWeight:700, color:'#fff', letterSpacing:'-0.03em' },
-  navLinks: { display:'flex', gap:28 },
-  navLink: { color:'rgba(255,255,255,0.5)', textDecoration:'none', fontSize:13, fontWeight:500 },
-  main: { position:'relative', zIndex:1 },
-  container: { maxWidth:860, margin:'0 auto', padding:'40px 32px 80px' },
-  pageHeader: { marginBottom:32 },
-  heading: { fontSize:28, fontWeight:800, letterSpacing:'-0.04em', margin:'0 0 6px' },
-  sub: { fontSize:14, color:'rgba(255,255,255,0.4)', margin:0 },
-  searchCard: { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:18, padding:'24px', marginBottom:24 },
-  searchRow: { display:'flex', gap:10, marginBottom:16, flexWrap:'wrap' },
-  searchInput: { flex:1, minWidth:200, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:'11px 14px', color:'#fff', fontSize:13, outline:'none', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-  searchBtn: { background:'#3B82F6', border:'none', borderRadius:12, padding:'11px 24px', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s', whiteSpace:'nowrap', minWidth:90, display:'flex', alignItems:'center', justifyContent:'center' },
-  suggestions: { display:'flex', gap:8, flexWrap:'wrap' },
-  chip: { background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:100, padding:'5px 14px', color:'rgba(255,255,255,0.5)', fontSize:12, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-  spinner: { display:'inline-block', width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%' },
-  loadingCard: { display:'flex', flexDirection:'column', alignItems:'center', gap:16, padding:'64px 0' },
-  loadingDots: { display:'flex', gap:8 },
-  dot: { width:8, height:8, borderRadius:'50%', background:'#3B82F6' },
-  loadingText: { fontSize:13, color:'rgba(255,255,255,0.3)', margin:0 },
-  contentCard: { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:'32px 36px' },
-  contentHeader: { display:'flex', alignItems:'center', gap:14, marginBottom:20 },
-  contentTitle: { fontSize:22, fontWeight:800, letterSpacing:'-0.04em', margin:0 },
-  contentBadge: { fontSize:11, color:'rgba(59,130,246,0.8)', background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:100, padding:'3px 12px', fontWeight:600, letterSpacing:'0.04em' },
-  divider: { height:1, background:'rgba(255,255,255,0.07)', marginBottom:24 },
-  contentBody: {},
-  contentFooter: { display:'flex', gap:12, alignItems:'center', marginTop:28, paddingTop:20, borderTop:'1px solid rgba(255,255,255,0.07)' },
-  clearBtn: { background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:'8px 18px', color:'rgba(255,255,255,0.5)', fontSize:12, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' },
-  chatLink: { fontSize:12, color:'#60A5FA', textDecoration:'none', fontWeight:500 },
-  emptyState: { display:'flex', flexDirection:'column', alignItems:'center', gap:16, padding:'80px 0' },
-  emptyText: { fontSize:14, color:'rgba(255,255,255,0.25)', textAlign:'center', maxWidth:380, margin:0, lineHeight:1.7 },
-  inlineCode: { background:'rgba(255,255,255,0.08)', padding:'2px 7px', borderRadius:5, fontSize:13, color:'#93C5FD', fontFamily:'monospace' },
-  codeBlock: { background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:'16px 20px', overflowX:'auto', margin:'12px 0' },
-  codeInner: { fontSize:13, color:'#6EE7B7', fontFamily:'monospace', lineHeight:1.6 },
-  mdH1: { fontSize:22, fontWeight:800, letterSpacing:'-0.03em', margin:'0 0 12px', color:'#fff' },
-  mdH2: { fontSize:18, fontWeight:700, letterSpacing:'-0.02em', margin:'20px 0 10px', color:'#fff' },
-  mdH3: { fontSize:15, fontWeight:700, margin:'16px 0 8px', color:'#fff' },
-  mdP: { fontSize:14, color:'rgba(255,255,255,0.7)', lineHeight:1.8, margin:'0 0 12px' },
-  mdUl: { margin:'8px 0 12px', paddingLeft:20 },
-  mdOl: { margin:'8px 0 12px', paddingLeft:20 },
-  mdLi: { fontSize:14, color:'rgba(255,255,255,0.65)', lineHeight:1.7, marginBottom:6 },
-  mdBlockquote: { borderLeft:'3px solid #3B82F6', paddingLeft:16, margin:'12px 0', color:'rgba(255,255,255,0.5)', fontStyle:'italic' },
-};
-
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-  * { box-sizing:border-box; } body { margin:0; -webkit-font-smoothing:antialiased; }
-  .fade-in { animation: fadeIn 0.4s ease; }
-  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-  .spin { animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .nav-link:hover { color: rgba(255,255,255,0.9) !important; }
-  .input-focus:focus { border-color: rgba(59,130,246,0.5) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important; }
-  .search-btn:hover:not(:disabled) { background: #2563EB !important; }
-  .chip:hover { background: rgba(255,255,255,0.08) !important; color: #fff !important; border-color: rgba(255,255,255,0.15) !important; }
-  .clear-btn:hover { background: rgba(255,255,255,0.08) !important; }
-  .chat-link:hover { text-decoration: underline !important; }
-  .dot-0 { animation: bounce 1s infinite 0s; }
-  .dot-1 { animation: bounce 1s infinite 0.15s; }
-  .dot-2 { animation: bounce 1s infinite 0.3s; }
-  @keyframes bounce { 0%,100% { transform:translateY(0); opacity:0.4; } 50% { transform:translateY(-6px); opacity:1; } }
-  input::placeholder { color: rgba(255,255,255,0.2); }
-`;
