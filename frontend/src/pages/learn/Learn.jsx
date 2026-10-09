@@ -18,7 +18,7 @@ export default function Learn() {
     'Linked Lists',
     'Dynamic Programming',
     'REST APIs',
-    'Sorting algorithms'
+    'Sorting algorithms',
   ];
 
   const learn = async () => {
@@ -66,32 +66,7 @@ export default function Learn() {
         .learn-page * {
           box-sizing: border-box;
         }
-          /* Topic and Subject Labels */
-.form-field label,
-label[htmlFor="exam-topic"],
-label[htmlFor="exam-subject"] {
-  display: block;
-  color: #D7DEEA;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  margin-bottom: 8px;
-  letter-spacing: 0.2px;
-}
 
-/* Required Star */
-.required {
-  color: #91B5FF;
-  font-size: 14px;
-  font-weight: 700;
-  margin-left: 3px;
-}
-  label[for="exam-topic"],
-label[for="exam-subject"] {
-  color: #D7DEEA;
-  font-size: 12px;
-  font-weight: 600;
-}
         .learn-page {
           min-height: 100vh;
           min-width: 320px;
@@ -125,6 +100,8 @@ label[for="exam-subject"] {
           background-size: 48px 48px;
         }
 
+        /* Navigation */
+
         .learn-nav {
           position: sticky;
           top: 0;
@@ -138,6 +115,7 @@ label[for="exam-subject"] {
           border-bottom: 1px solid rgba(255,255,255,.07);
           background: rgba(7,9,15,.88);
           backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
         }
 
         .learn-brand {
@@ -155,6 +133,7 @@ label[for="exam-subject"] {
           justify-content: center;
           width: 36px;
           height: 36px;
+          flex-shrink: 0;
           border: 1px solid rgba(59,130,246,.25);
           border-radius: 11px;
           background: rgba(59,130,246,.12);
@@ -164,12 +143,14 @@ label[for="exam-subject"] {
           font-size: 17px;
           font-weight: 800;
           letter-spacing: -.7px;
+          white-space: nowrap;
         }
 
         .learn-nav-links {
           display: flex;
           align-items: center;
           gap: clamp(12px, 2.5vw, 28px);
+          min-width: 0;
         }
 
         .learn-nav-link {
@@ -177,6 +158,7 @@ label[for="exam-subject"] {
           font-size: 13px;
           font-weight: 500;
           text-decoration: none;
+          white-space: nowrap;
           transition: color .2s ease;
         }
 
@@ -184,6 +166,8 @@ label[for="exam-subject"] {
         .learn-nav-link.active {
           color: #fff;
         }
+
+        /* Page layout */
 
         .learn-main {
           position: relative;
@@ -216,6 +200,7 @@ label[for="exam-subject"] {
         .learn-eyebrow-dot {
           width: 7px;
           height: 7px;
+          flex-shrink: 0;
           border-radius: 50%;
           background: #60a5fa;
           box-shadow: 0 0 12px rgba(96,165,250,.5);
@@ -242,6 +227,8 @@ label[for="exam-subject"] {
           line-height: 1.8;
         }
 
+        /* Topic and subject form */
+
         .learn-search-card {
           margin-bottom: 24px;
           padding: clamp(18px, 3vw, 26px);
@@ -265,14 +252,58 @@ label[for="exam-subject"] {
           line-height: 1.7;
         }
 
+        /*
+          Three correctly aligned desktop columns:
+          Topic field | Subject field | Explain button.
+          Each label and input stay together inside its own field.
+        */
+
         .learn-search-row {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(150px, .48fr) auto;
-          gap: 11px;
-          margin-bottom: 22px;
+          grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) auto;
+          align-items: end;
+          gap: 13px;
+          margin: 0 0 22px;
+        }
+
+        .learn-field {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .learn-field label {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 4px;
+          min-height: 18px;
+          margin: 0;
+          color: #D7DEEA;
+          font-family: 'Inter', sans-serif;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: .2px;
+          line-height: 1.5;
+        }
+
+        .learn-field .required {
+          margin-left: 2px;
+          color: #91B5FF;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .learn-optional {
+          margin-left: 4px;
+          color: #747f92;
+          font-size: 10px;
+          font-weight: 500;
         }
 
         .learn-input {
+          display: block;
           width: 100%;
           min-width: 0;
           min-height: 48px;
@@ -283,16 +314,27 @@ label[for="exam-subject"] {
           color: #fff;
           font-size: 13px;
           outline: none;
-          transition: border-color .2s, box-shadow .2s;
+          transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
         }
 
         .learn-input::placeholder {
           color: #687184;
+          opacity: 1;
+        }
+
+        .learn-input:hover:not(:disabled) {
+          border-color: rgba(255,255,255,.17);
         }
 
         .learn-input:focus {
           border-color: rgba(96,165,250,.65);
+          background: rgba(4,8,16,.9);
           box-shadow: 0 0 0 3px rgba(59,130,246,.11);
+        }
+
+        .learn-input:disabled {
+          cursor: not-allowed;
+          opacity: .65;
         }
 
         .learn-explain-button {
@@ -300,22 +342,27 @@ label[for="exam-subject"] {
           align-items: center;
           justify-content: center;
           gap: 9px;
-          min-width: 112px;
+          min-width: 124px;
           min-height: 48px;
-          padding: 12px 20px;
-          border: none;
+          padding: 12px 17px;
+          border: 1px solid rgba(96,165,250,.28);
           border-radius: 11px;
           background: #3b82f6;
           color: #fff;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 700;
+          white-space: nowrap;
           cursor: pointer;
-          transition: background .2s, transform .2s, opacity .2s;
+          transition: background .2s ease, transform .2s ease, opacity .2s ease;
         }
 
         .learn-explain-button:hover:not(:disabled) {
           transform: translateY(-1px);
           background: #2563eb;
+        }
+
+        .learn-explain-button:active:not(:disabled) {
+          transform: translateY(0);
         }
 
         .learn-explain-button:disabled {
@@ -337,6 +384,8 @@ label[for="exam-subject"] {
         @keyframes learnSpin {
           to { transform: rotate(360deg); }
         }
+
+        /* Topic suggestions */
 
         .learn-suggestions {
           display: flex;
@@ -369,10 +418,10 @@ label[for="exam-subject"] {
           text-align: left;
           overflow-wrap: anywhere;
           cursor: pointer;
-          transition: background .2s, border-color .2s, color .2s;
+          transition: background .2s ease, border-color .2s ease, color .2s ease;
         }
 
-        .learn-chip:hover {
+        .learn-chip:hover:not(:disabled) {
           border-color: rgba(96,165,250,.35);
           background: rgba(59,130,246,.1);
           color: #dbeafe;
@@ -382,6 +431,8 @@ label[for="exam-subject"] {
           cursor: not-allowed;
           opacity: .5;
         }
+
+        /* Loading state */
 
         .learn-loading-card {
           display: flex;
@@ -445,9 +496,17 @@ label[for="exam-subject"] {
         }
 
         @keyframes learnBounce {
-          0%, 100% { opacity: .35; transform: translateY(0); }
-          50% { opacity: 1; transform: translateY(-5px); }
+          0%, 100% {
+            opacity: .35;
+            transform: translateY(0);
+          }
+          50% {
+            opacity: 1;
+            transform: translateY(-5px);
+          }
         }
+
+        /* Explanation card */
 
         .learn-content-card {
           min-width: 0;
@@ -701,6 +760,9 @@ label[for="exam-subject"] {
         }
 
         .learn-new-topic-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           min-height: 41px;
           padding: 10px 15px;
           border: 1px solid rgba(255,255,255,.1);
@@ -710,7 +772,7 @@ label[for="exam-subject"] {
           font-size: 12px;
           font-weight: 600;
           cursor: pointer;
-          transition: background .2s, border-color .2s;
+          transition: background .2s ease, border-color .2s ease;
         }
 
         .learn-new-topic-button:hover {
@@ -727,12 +789,14 @@ label[for="exam-subject"] {
           font-size: 12px;
           font-weight: 600;
           text-decoration: none;
-          transition: color .2s;
+          transition: color .2s ease;
         }
 
         .learn-chat-link:hover {
           color: #bfdbfe;
         }
+
+        /* Empty state */
 
         .learn-empty-state {
           display: flex;
@@ -775,13 +839,22 @@ label[for="exam-subject"] {
         }
 
         @keyframes learnFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
-        @media (max-width: 760px) {
+        /* Tablet */
+
+        @media (max-width: 900px) {
           .learn-search-row {
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 15px 12px;
           }
 
           .learn-explain-button {
@@ -789,6 +862,8 @@ label[for="exam-subject"] {
             width: 100%;
           }
         }
+
+        /* Mobile */
 
         @media (max-width: 640px) {
           .learn-nav {
@@ -808,6 +883,13 @@ label[for="exam-subject"] {
 
           .learn-nav-links {
             gap: 13px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .learn-nav-links::-webkit-scrollbar {
+            display: none;
           }
 
           .learn-nav-link {
@@ -836,12 +918,23 @@ label[for="exam-subject"] {
 
           .learn-search-row {
             grid-template-columns: minmax(0, 1fr);
-            gap: 11px;
+            gap: 16px;
             margin-bottom: 20px;
+          }
+
+          .learn-field label {
+            font-size: 12px;
+          }
+
+          .learn-input {
+            min-height: 47px;
+            font-size: 13px;
           }
 
           .learn-explain-button {
             grid-column: auto;
+            width: 100%;
+            min-height: 47px;
           }
 
           .learn-content-card {
@@ -936,10 +1029,10 @@ label[for="exam-subject"] {
         }
       `}</style>
 
-      <div className="learn-background" />
+      <div className="learn-background" aria-hidden="true" />
 
-      <nav className="learn-nav">
-        <Link to="/dashboard" className="learn-brand">
+      <nav className="learn-nav" aria-label="Main navigation">
+        <Link to="/dashboard" className="learn-brand" aria-label="SyllabusAI dashboard">
           <span className="learn-brand-icon">
             <svg
               width="18"
@@ -979,13 +1072,9 @@ label[for="exam-subject"] {
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/chat', label: 'Chat' },
             { to: '/exam', label: 'Exam' },
-            { to: '/career', label: 'Career' }
+            { to: '/career', label: 'Career' },
           ].map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className="learn-nav-link"
-            >
+            <Link key={to} to={to} className="learn-nav-link">
               {label}
             </Link>
           ))}
@@ -1025,31 +1114,56 @@ label[for="exam-subject"] {
 
           <form
             className="learn-search-row"
-            onSubmit={(e) => {
-              e.preventDefault();
+            onSubmit={(event) => {
+              event.preventDefault();
               learn();
             }}
           >
-            <label htmlFor="exam-topic">Topic <span className="required">*</span></label>
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="Topic, e.g. Binary Search Trees"
-              aria-label="Topic to learn"
-              className="learn-input"
-              autoComplete="off"
-            />
-            <label htmlFor="exam-subject">Subject <span className="required">*</span></label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Subject"
-              aria-label="Subject"
-              className="learn-input"
-              autoComplete="off"
-            />
+            <div className="learn-field">
+              <label htmlFor="learn-topic">
+                Topic <span className="required">*</span>
+              </label>
+
+              <input
+                id="learn-topic"
+                type="text"
+                value={topic}
+                onChange={(event) => setTopic(event.target.value)}
+                placeholder="e.g. Binary Search Trees"
+                aria-describedby="learn-topic-hint"
+                className="learn-input"
+                autoComplete="off"
+                maxLength={200}
+                required
+                disabled={loading}
+              />
+
+              <span id="learn-topic-hint" className="learn-field-hint">
+                The concept you want explained.
+              </span>
+            </div>
+
+            <div className="learn-field">
+              <label htmlFor="learn-subject">
+                Subject <span className="learn-optional">(Optional)</span>
+              </label>
+
+              <input
+                id="learn-subject"
+                type="text"
+                value={subject}
+                onChange={(event) => setSubject(event.target.value)}
+                placeholder="e.g. Data Structures"
+                className="learn-input"
+                autoComplete="off"
+                maxLength={150}
+                disabled={loading}
+              />
+
+              <span className="learn-field-hint">
+                Helps focus the explanation.
+              </span>
+            </div>
 
             <button
               type="submit"
@@ -1166,10 +1280,7 @@ label[for="exam-subject"] {
 
                     if (!isBlock) {
                       return (
-                        <code
-                          className="learn-inline-code"
-                          {...props}
-                        >
+                        <code className="learn-inline-code" {...props}>
                           {children}
                         </code>
                       );
@@ -1213,15 +1324,13 @@ label[for="exam-subject"] {
                       {children}
                     </a>
                   ),
-                  table: ({ children }) => (
-                    <table>{children}</table>
-                  ),
+                  table: ({ children }) => <table>{children}</table>,
                   thead: ({ children }) => <thead>{children}</thead>,
                   tbody: ({ children }) => <tbody>{children}</tbody>,
                   tr: ({ children }) => <tr>{children}</tr>,
                   th: ({ children }) => <th>{children}</th>,
                   td: ({ children }) => <td>{children}</td>,
-                  hr: () => <hr />
+                  hr: () => <hr />,
                 }}
               >
                 {content}
