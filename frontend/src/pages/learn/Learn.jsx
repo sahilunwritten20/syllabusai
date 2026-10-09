@@ -1145,7 +1145,7 @@ export default function Learn() {
 
             <div className="learn-field">
               <label htmlFor="learn-subject">
-                Subject <span className="learn-optional">(Optional)</span>
+                Subject <span className="required">*</span>
               </label>
 
               <input

@@ -37,20 +37,48 @@ export default function Settings() {
   }, []);
 
   const fetchData = async () => {
-    try {
-      const [keysRes, subRes] = await Promise.all([
-        API.get('/keys'),
-        API.get('/payment/subscription')
-      ]);
+  try {
+    const results = await Promise.allSettled([
+      API.get('/keys'),
+      API.get('/payment/subscription'),
+    ]);
 
-      setApiKeys(keysRes.data.keys || []);
-      setSubscription(subRes.data.subscription || null);
-    } catch {
-      toast.error('Unable to load settings');
-    } finally {
-      setDataLoading(false);
+    const [keysResult, subscriptionResult] = results;
+
+    const keysLoaded = keysResult.status === 'fulfilled';
+    const subscriptionLoaded = subscriptionResult.status === 'fulfilled';
+
+    // Update API keys independently.
+    if (keysLoaded) {
+      setApiKeys(keysResult.value.data.keys || []);
+    } else {
+      console.error(
+        'Unable to load API keys:',
+        keysResult.reason
+      );
     }
-  };
+
+    // Update subscription independently.
+    if (subscriptionLoaded) {
+      setSubscription(
+        subscriptionResult.value.data.subscription || null
+      );
+    } else {
+      console.error(
+        'Unable to load subscription:',
+        subscriptionResult.reason
+      );
+    }
+
+    // Show an error only if BOTH requests fail.
+    // A partial failure will no longer trigger a misleading popup.
+    if (!keysLoaded && !subscriptionLoaded) {
+      toast.error('Unable to load settings. Please try again.');
+    }
+  } finally {
+    setDataLoading(false);
+  }
+};
 
   const handleUpgrade = async (plan) => {
     if (payLoading) return;
