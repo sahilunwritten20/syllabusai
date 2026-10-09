@@ -66,7 +66,32 @@ export default function Learn() {
         .learn-page * {
           box-sizing: border-box;
         }
+          /* Topic and Subject Labels */
+.form-field label,
+label[htmlFor="exam-topic"],
+label[htmlFor="exam-subject"] {
+  display: block;
+  color: #D7DEEA;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
 
+/* Required Star */
+.required {
+  color: #91B5FF;
+  font-size: 14px;
+  font-weight: 700;
+  margin-left: 3px;
+}
+  label[for="exam-topic"],
+label[for="exam-subject"] {
+  color: #D7DEEA;
+  font-size: 12px;
+  font-weight: 600;
+}
         .learn-page {
           min-height: 100vh;
           min-width: 320px;
@@ -1005,6 +1030,7 @@ export default function Learn() {
               learn();
             }}
           >
+            <label htmlFor="exam-topic">Topic <span className="required">*</span></label>
             <input
               type="text"
               value={topic}
@@ -1014,12 +1040,12 @@ export default function Learn() {
               className="learn-input"
               autoComplete="off"
             />
-
+            <label htmlFor="exam-subject">Subject <span className="required">*</span></label>
             <input
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Subject (optional)"
+              placeholder="Subject"
               aria-label="Subject"
               className="learn-input"
               autoComplete="off"

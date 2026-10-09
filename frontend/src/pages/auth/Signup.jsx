@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
+import API from '../../services/api';
 import toast from 'react-hot-toast';
 
 const Icon = ({ name, size = 18 }) => {
@@ -108,6 +109,12 @@ export default function Signup() {
       ...previous,
       [field]: event.target.value,
     }));
+  };
+
+  // Uses the existing API base URL and the backend Google OAuth route.
+  const handleGoogleSignup = () => {
+    const baseURL = (API.defaults.baseURL || '/api').replace(/\/+$/, '');
+    window.location.assign(`${baseURL}/auth/google`);
   };
 
   const strength =
@@ -482,7 +489,12 @@ export default function Signup() {
 
               <button
                 type="submit"
-                disabled={loading || !form.name.trim() || !form.email.trim() || !form.password}
+                disabled={
+                  loading ||
+                  !form.name.trim() ||
+                  !form.email.trim() ||
+                  !form.password
+                }
                 className="signup-submit"
               >
                 {loading ? (
@@ -501,11 +513,51 @@ export default function Signup() {
               </button>
             </form>
 
+            {/* Google signup option added; existing form remains unchanged. */}
             <div className="signup-divider">
               <span />
-              <span>YOUR LEARNING JOURNEY</span>
+              <span>OR CONTINUE WITH</span>
               <span />
             </div>
+
+            <button
+              type="button"
+              className="signup-google-button"
+              onClick={handleGoogleSignup}
+              disabled={loading}
+            >
+              <svg
+                className="signup-google-icon"
+                viewBox="0 0 48 48"
+                aria-hidden="true"
+              >
+                <path
+                  fill="#EA4335"
+                  d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"
+                  transform="translate(0 5)"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.76 7.18l7.73 6C44.42 38.13 46.98 31.88 46.98 24.55Z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M10.53 28.59A14.4 14.4 0 0 1 9.77 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.53 2.56 10.78l7.97-6.19Z"
+                  transform="translate(0 0)"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.15 1.45-4.92 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.97 6.19C6.51 42.62 14.62 48 24 48Z"
+                  transform="translate(0 0)"
+                />
+              </svg>
+
+              <span>Continue with Google</span>
+
+              <span className="signup-google-arrow" aria-hidden="true">
+                <Icon name="arrow" size={15} />
+              </span>
+            </button>
 
             <p className="signup-switch">
               Already have an account?
@@ -1290,7 +1342,7 @@ const signupCSS = `
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 21px 0 17px;
+    margin: 21px 0 15px;
     color: #626C83;
     font-size: 8px;
     font-weight: 600;
@@ -1305,13 +1357,73 @@ const signupCSS = `
     background: rgba(255,255,255,.07);
   }
 
+  /* Google signup button */
+
+  .signup-google-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 45px;
+    padding: 0 42px;
+    border: 1px solid rgba(255,255,255,.105);
+    border-radius: 10px;
+    background: rgba(255,255,255,.035);
+    color: #E4E8F3;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, transform .2s ease;
+  }
+
+  .signup-google-button:hover:not(:disabled) {
+    border-color: rgba(255,255,255,.19);
+    background: rgba(255,255,255,.065);
+    transform: translateY(-1px);
+  }
+
+  .signup-google-button:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .signup-google-button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+
+  .signup-google-icon {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+  }
+
+  .signup-google-arrow {
+    position: absolute;
+    right: 13px;
+    display: grid;
+    width: 25px;
+    height: 25px;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 7px;
+    color: #77839B;
+    transition: color .2s ease, border-color .2s ease;
+  }
+
+  .signup-google-button:hover:not(:disabled) .signup-google-arrow {
+    border-color: rgba(255,255,255,.12);
+    color: #D9E0F2;
+  }
+
   .signup-switch {
     display: flex;
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
     gap: 5px;
-    margin: 0;
+    margin: 19px 0 0;
     color: #8E97AC;
     font-size: 10px;
     line-height: 1.8;
@@ -1568,6 +1680,11 @@ const signupCSS = `
     .signup-divider {
       gap: 8px;
       font-size: 7px;
+    }
+
+    .signup-google-button {
+      min-height: 44px;
+      font-size: 10px;
     }
 
     .signup-bottom {

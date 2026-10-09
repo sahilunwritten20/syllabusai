@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
+import API from '../../services/api';
 import toast from 'react-hot-toast';
 
 const Icon = ({ name, size = 18 }) => {
@@ -77,6 +78,12 @@ export default function Login() {
 
   const { login } = useAuthStore();
   const navigate = useNavigate();
+
+  // Uses the existing API base URL to start Google OAuth.
+  const handleGoogleLogin = () => {
+    const baseURL = (API.defaults.baseURL || '/api').replace(/\/+$/, '');
+    window.location.assign(`${baseURL}/auth/google`);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -340,15 +347,54 @@ export default function Login() {
               </button>
             </form>
 
+            {/* Google sign-in option restored. */}
             <div className="login-divider">
               <span />
-              <span>YOUR LEARNING SPACE</span>
+              <span>OR CONTINUE WITH</span>
               <span />
             </div>
 
+            <button
+              type="button"
+              className="login-google-button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+            >
+              <svg
+                className="login-google-icon"
+                viewBox="0 0 48 48"
+                aria-hidden="true"
+              >
+                <path
+                  fill="#4285F4"
+                  d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.8 6.1-15Z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.2A20 20 0 0 0 24 44Z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M12.6 27.6a12 12 0 0 1 0-7.2v-5.2H5.8a20 20 0 0 0 0 17.6l6.8-5.2Z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M24 11.9c3 0 5.6 1 7.7 3l5.8-5.8C34 5.8 29.5 4 24 4A20 20 0 0 0 5.8 15.2l6.8 5.2c1.6-4.9 6.1-8.5 11.4-8.5Z"
+                />
+              </svg>
+
+              <span>Continue with Google</span>
+
+              <span className="login-google-arrow" aria-hidden="true">
+                <Icon name="arrow" size={15} />
+              </span>
+            </button>
+
             <p className="login-switch">
               New to SyllabusAI?
-              <Link to="/signup">Create an account <Icon name="arrow" size={14} /></Link>
+              <Link to="/signup">
+                Create an account <Icon name="arrow" size={14} />
+              </Link>
             </p>
           </div>
 
@@ -1036,7 +1082,7 @@ const loginCSS = `
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 25px 0 21px;
+    margin: 25px 0 15px;
     color: #626C83;
     font-size: 8px;
     font-weight: 600;
@@ -1051,13 +1097,73 @@ const loginCSS = `
     background: rgba(255,255,255,.07);
   }
 
+  /* Google sign-in button */
+
+  .login-google-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 47px;
+    padding: 0 42px;
+    border: 1px solid rgba(255,255,255,.105);
+    border-radius: 11px;
+    background: rgba(255,255,255,.035);
+    color: #E4E8F3;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, transform .2s ease;
+  }
+
+  .login-google-button:hover:not(:disabled) {
+    border-color: rgba(255,255,255,.19);
+    background: rgba(255,255,255,.065);
+    transform: translateY(-1px);
+  }
+
+  .login-google-button:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .login-google-button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+
+  .login-google-icon {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+  }
+
+  .login-google-arrow {
+    position: absolute;
+    right: 13px;
+    display: grid;
+    width: 25px;
+    height: 25px;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 7px;
+    color: #77839B;
+    transition: color .2s ease, border-color .2s ease;
+  }
+
+  .login-google-button:hover:not(:disabled) .login-google-arrow {
+    border-color: rgba(255,255,255,.12);
+    color: #D9E0F2;
+  }
+
   .login-switch {
     display: flex;
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
     gap: 5px;
-    margin: 0;
+    margin: 19px 0 0;
     color: #8E97AC;
     font-size: 11px;
     line-height: 1.8;
@@ -1300,8 +1406,13 @@ const loginCSS = `
     }
 
     .login-divider {
-      margin: 22px 0 19px;
+      margin: 22px 0 15px;
       font-size: 7px;
+    }
+
+    .login-google-button {
+      min-height: 45px;
+      font-size: 10px;
     }
 
     .login-bottom {

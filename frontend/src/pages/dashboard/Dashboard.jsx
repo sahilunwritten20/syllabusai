@@ -264,7 +264,7 @@ export default function Dashboard() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate('/login', { replace: true });
     } catch {
       toast.error('Unable to sign out. Please try again.');
     }
@@ -810,14 +810,15 @@ const css = `
 
   .welcome-section {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
-    gap: 28px;
+    gap: clamp(28px, 4vw, 52px);
     margin-bottom: 48px;
     animation: enterUp .55s ease both;
   }
 
   .welcome-copy {
+    flex: 1 1 auto;
     min-width: 0;
   }
 
@@ -839,6 +840,7 @@ const css = `
   .eyebrow-line {
     width: 22px;
     height: 1px;
+    flex-shrink: 0;
     background: #91A9FF;
   }
 
@@ -863,22 +865,27 @@ const css = `
     line-height: 1.8;
   }
 
+  /* Desktop motivation card: balanced width and controlled text length */
+
   .motivation-card {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    width: min(100%, 340px);
-    padding: 16px;
+    gap: 13px;
+    flex: 0 1 390px;
+    width: min(39%, 390px);
+    min-width: 0;
+    padding: 17px;
     border: 1px solid rgba(145,169,255,.15);
     border-radius: 15px;
     background: linear-gradient(135deg, rgba(145,169,255,.085), rgba(255,255,255,.018));
+    box-shadow: 0 15px 45px rgba(0,0,0,.08);
   }
 
   .motivation-icon {
     display: grid;
-    width: 34px;
-    height: 34px;
-    flex-shrink: 0;
+    width: 35px;
+    height: 35px;
+    flex: 0 0 35px;
     place-items: center;
     border-radius: 10px;
     background: rgba(145,169,255,.12);
@@ -886,23 +893,32 @@ const css = `
   }
 
   .motivation-copy {
+    flex: 1 1 auto;
     min-width: 0;
   }
 
   .motivation-copy > span {
+    display: block;
+    margin-top: 1px;
     color: #AAB9F2;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: .8px;
+    line-height: 1.6;
     text-transform: uppercase;
   }
 
   .motivation-copy p {
-    margin: 7px 0 0;
+    display: -webkit-box;
+    margin: 8px 0 0;
+    overflow: hidden;
     color: #C2C7D7;
     font-size: 12px;
     line-height: 1.7;
     overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
   }
 
   /* Upload and loading */
@@ -1626,6 +1642,15 @@ const css = `
       width: min(100% - 48px, 1120px);
     }
 
+    .welcome-section {
+      gap: 26px;
+    }
+
+    .motivation-card {
+      flex-basis: 355px;
+      width: min(39%, 355px);
+    }
+
     .stats-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1639,22 +1664,38 @@ const css = `
     }
   }
 
+  /* Mobile navigation: brand and account controls share the first row.
+     Links occupy the second row, preventing the logout button from drifting down. */
+
   @media (max-width: 760px) {
     .dashboard-nav {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "brand account"
+        "links links";
+      align-items: center;
       gap: 0 12px;
       min-height: auto;
-      padding: 12px 18px 0;
+      padding: 11px 18px 0;
     }
 
     .brand {
+      grid-area: brand;
+      min-width: 0;
       min-height: 38px;
     }
 
     .nav-account {
+      grid-area: account;
       justify-self: end;
       gap: 8px;
+      min-width: 0;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
     }
 
     .account-name {
@@ -1663,15 +1704,22 @@ const css = `
 
     .logout-button {
       min-height: 34px;
-      padding: 0 9px;
+      gap: 6px;
+      padding: 0 10px;
+      white-space: nowrap;
+    }
+
+    .logout-button svg {
+      flex-shrink: 0;
     }
 
     .nav-links {
-      grid-column: 1 / -1;
+      grid-area: links;
       display: flex;
       justify-content: flex-start;
       gap: 22px;
       width: 100%;
+      min-width: 0;
       margin-top: 7px;
       overflow-x: auto;
       overscroll-behavior-x: contain;
@@ -1700,9 +1748,23 @@ const css = `
       margin-bottom: 35px;
     }
 
+    .welcome-copy {
+      width: 100%;
+    }
+
+    /* Keep the complete thought visible on mobile, as in the existing design. */
     .motivation-card {
+      align-self: stretch;
+      flex: 0 1 auto;
       width: 100%;
       max-width: none;
+    }
+
+    .motivation-copy p {
+      display: block;
+      overflow: visible;
+      -webkit-line-clamp: unset;
+      line-clamp: unset;
     }
 
     .upload-card {
@@ -1752,6 +1814,7 @@ const css = `
     .dashboard-nav {
       padding-right: 14px;
       padding-left: 14px;
+      column-gap: 8px;
     }
 
     .brand {
@@ -1765,6 +1828,29 @@ const css = `
 
     .brand-name {
       font-size: 15px;
+    }
+
+    .nav-account {
+      gap: 7px;
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      font-size: 12px;
+    }
+
+    .logout-button {
+      min-height: 32px;
+      gap: 5px;
+      padding: 0 8px;
+      border-radius: 8px;
+      font-size: 10px;
+    }
+
+    .logout-button svg {
+      width: 14px;
+      height: 14px;
     }
 
     .nav-links {
@@ -1791,7 +1877,23 @@ const css = `
     }
 
     .motivation-card {
+      gap: 11px;
       padding: 13px;
+    }
+
+    .motivation-icon {
+      width: 33px;
+      height: 33px;
+      flex-basis: 33px;
+    }
+
+    .motivation-copy > span {
+      font-size: 10px;
+    }
+
+    .motivation-copy p {
+      font-size: 12px;
+      line-height: 1.75;
     }
 
     .upload-card {
@@ -1939,13 +2041,48 @@ const css = `
   }
 
   @media (max-width: 350px) {
-    .logout-button {
-      width: 34px;
-      padding: 0;
+    .dashboard-nav {
+      column-gap: 5px;
+      padding-right: 10px;
+      padding-left: 10px;
     }
 
-    .logout-button span {
-      display: none;
+    .brand {
+      gap: 6px;
+    }
+
+    .brand-icon {
+      width: 29px;
+      height: 29px;
+    }
+
+    .brand-name {
+      font-size: 14px;
+    }
+
+    .nav-account {
+      gap: 5px;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+    }
+
+    .logout-button {
+      min-height: 30px;
+      gap: 4px;
+      padding: 0 6px;
+      font-size: 9px;
+    }
+
+    .logout-button svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .dashboard-main {
+      width: calc(100% - 26px);
     }
 
     .stats-grid,

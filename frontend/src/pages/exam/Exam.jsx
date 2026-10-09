@@ -237,7 +237,7 @@ export default function Exam() {
 
                   <div className="form-field">
                     <label htmlFor="exam-subject">
-                      Subject <span className="optional">(optional)</span>
+                      Subject <span className="required">*</span>
                     </label>
                     <input
                       id="exam-subject"
