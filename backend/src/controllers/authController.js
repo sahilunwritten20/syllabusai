@@ -94,6 +94,22 @@ const login = async (req, res) => {
       });
     }
 
+    // ✅ Update streak on login
+const today = new Date().toDateString();
+const lastLogin = user.lastLoginDate ? new Date(user.lastLoginDate).toDateString() : null;
+const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+if (lastLogin !== today) {
+  if (lastLogin === yesterday) {
+    // Consecutive day — increase streak
+    user.streak = (user.streak || 0) + 1;
+  } else if (lastLogin !== today) {
+    // Missed a day — reset streak to 1
+    user.streak = 1;
+  }
+  user.lastLoginDate = new Date();
+  await user.save();
+}
     // ✅ Reset attempts on success
     user.loginAttempts = 0;
     user.lockUntil = undefined;

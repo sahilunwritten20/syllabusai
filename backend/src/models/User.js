@@ -28,6 +28,9 @@ const userSchema = new mongoose.Schema({
     default: 'student'
   },
 
+  streak: { type: Number, default: 0 },
+  lastLoginDate: { type: Date },
+
   branch: { type: String, default: '' },
   semester: { type: Number, default: 1 },
   college: { type: String, default: '' },
